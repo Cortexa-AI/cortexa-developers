@@ -1,0 +1,92 @@
+---
+title: Extended workflows
+description: Documents, Ask AI, coding, attachments and patient links.
+---
+
+Paths are relative to `/v2/scribe/open-api`. Send a partner Bearer JWT on every
+request. Requests documented with `Idempotency-Key` require a unique key for each
+new operation; retries must keep the same key and payload.
+
+## Documents and custom templates
+
+1. `POST /sessions/{session_id}/documents` with `{"title":"Referral","template_id":"TEMPLATE_ID"}`
+   and `Idempotency-Key` creates an empty document. Omitting the template uses Auto SOAP.
+2. `POST /sessions/{session_id}/documents/{document_id}/content` with `{}` and a new
+   idempotency key queues generation. Poll `/jobs/{job_id}`, then fetch the document.
+3. PATCH the document with `{"base_version":1,"rendered_text":"Clinician-reviewed text"}`.
+   Read `current_version` before editing. A stale version returns 409.
+4. `PATCH /sessions/{session_id}/consult-note` edits the latest completed note produced
+   through the consult-note endpoint. It uses the same version contract.
+5. DELETE a document or session through its resource path. Deleted resources become
+   inaccessible to the partner.
+
+For a new custom template response, POST
+`/sessions/{session_id}/client-customised-template/response` with an idempotency key:
+
+```json
+{
+  "name": "Patient instructions",
+  "prompt": "Summarize the documented management plan in plain language. Do not invent facts.",
+  "output_language_code": "en"
+}
+```
+
+This creates a private clinician template and queues a document using the session's
+clinical context. The receipt includes `job_id` and `document_ids`. Replaying the
+same key does not create another template or document. Existing template permission
+and custom-template entitlement requirements apply.
+
+## Ask AI
+
+POST `/sessions/{session_id}/ask-ai` with `{"message":"Summarize the documented plan"}`
+and an idempotency key. The 202 response contains `job_id`. GET
+`/sessions/{session_id}/ask-ai/{job_id}` returns `status`, `answer`, `message_status`
+and `failure_code`. An answer is final when the job succeeds. Read-only result
+polling requires `scribe:read`; submitting a question requires `scribe:generate`.
+Partner questions use this session's context and prior partner replies. Unshared
+patient visits, internal conversation history, library search and automatic task
+creation are excluded from this endpoint.
+
+## Coding and E/M
+
+GET `/sessions/{session_id}/clinical-codes` returns the latest coding result or starts
+one using the clinician's enabled coding settings. A pending run returns 202; a
+completed run returns 200 with its status and suggestions. A failed run includes
+`failure_code`. To rerun or choose code sets, POST the same path with an idempotency
+key and `{"code_systems":["icd10cm-outpatient"]}`. The configured coding provider
+must support the requested systems.
+
+GET `/sessions/{session_id}/clinical-codes/em-level?patient_type=new_patient`
+assesses the latest completed consult note. Use `established_patient` for a returning
+patient. The response includes three MDM elements, quoted evidence, overall level,
+suggested CPT code and the source document version. At least two supported elements
+must meet the selected level. Missing/unsupported evidence yields
+`insufficient_documentation` and a null code. A clinician must review suggestions
+before billing. Editing the note invalidates the cached assessment.
+
+## Context documents
+
+POST `/sessions/{session_id}/context-documents` as multipart form data with one to
+ten `files` fields and an idempotency key. Supported file types are PDF, DOCX, TXT,
+Markdown, JPEG, PNG and WebP. The request's total file content is limited to 50 MiB.
+Cortexa extracts and indexes the files. Poll GET on the same path
+until `status` and `index_status` indicate readiness before requesting a note.
+An extraction failure remains visible through the item's status.
+
+DELETE the same path with `{"document_ids":["CONTEXT_DOCUMENT_ID"]}` to remove those
+attachments from this session. This changes the context used by subsequent note
+generation and leaves existing generated documents intact.
+
+## Patient links and directory
+
+POST `/patients/{patient_id}/sessions` with `{"session_ids":["SESSION_ID"]}` to link
+existing sessions. DELETE the same path with the same body to unlink. Every patient
+and session in a batch must belong to the calling grant; an invalid resource fails
+the whole request. Unlinking a session from the wrong patient returns 409.
+
+DELETE `/patients:batch-delete` with `{"patient_ids":["PATIENT_ID"]}` deletes up to
+100 patients. Patient deletion detaches their visits; session deletion is separate.
+
+GET `/teams` returns the JWT's authorized workspace. GET `/teams/{team_id}` reads it,
+and GET `/organizations/{organization_id}/members` lists its active members with
+pagination. Use the workspace ID for both identifiers.

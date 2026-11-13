@@ -1,0 +1,1425 @@
+{
+  "info": {
+    "name": "Cortexa Scribe Open API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Use synthetic data. Set base_url to your assigned Cortexa environment. Complete user authorization first. See the quickstart for request order."
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{jwt}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://sandbox.api.cortexanote.com"
+    },
+    {
+      "key": "idempotency_key",
+      "value": "synthetic-run-001"
+    },
+    {
+      "key": "patient_type",
+      "value": "new_patient"
+    },
+    {
+      "key": "api_key",
+      "value": ""
+    },
+    {
+      "key": "authorization_code",
+      "value": ""
+    },
+    {
+      "key": "jwt",
+      "value": ""
+    },
+    {
+      "key": "grant_id",
+      "value": ""
+    },
+    {
+      "key": "patient_id",
+      "value": ""
+    },
+    {
+      "key": "session_id",
+      "value": ""
+    },
+    {
+      "key": "template_id",
+      "value": ""
+    },
+    {
+      "key": "document_id",
+      "value": ""
+    },
+    {
+      "key": "job_id",
+      "value": ""
+    },
+    {
+      "key": "upload_id",
+      "value": ""
+    },
+    {
+      "key": "upload_etag",
+      "value": ""
+    },
+    {
+      "key": "recording_id",
+      "value": ""
+    },
+    {
+      "key": "context_document_id",
+      "value": ""
+    },
+    {
+      "key": "team_id",
+      "value": ""
+    },
+    {
+      "key": "organization_id",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Token",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/v2/scribe/open-api/jwt",
+        "header": [
+          {
+            "key": "Cortexa-Api-Key",
+            "value": "{{api_key}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"authorization_code\": \"{{authorization_code}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));",
+              "if (pm.response.code < 300) { const data = pm.response.json();",
+              "if (data.access_token) pm.collectionVariables.set(\"jwt\", data.access_token);",
+              "if (data.grant_id) pm.collectionVariables.set(\"grant_id\", data.grant_id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Public Keys",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/v2/scribe/open-api/.well-known/jwks.json",
+        "header": [],
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Create Patient",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/v2/scribe/open-api/patients",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"external_patient_id\": \"ehr-patient-001\",\n  \"name\": \"Synthetic Patient\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));",
+              "if (pm.response.code < 300) { const data = pm.response.json();",
+              "if (data.id) pm.collectionVariables.set(\"patient_id\", data.id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "List Patients",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/v2/scribe/open-api/patients",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get Patient",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/v2/scribe/open-api/patients/{{patient_id}}",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Update Patient",
+      "request": {
+        "method": "PATCH",
+        "url": "{{base_url}}/v2/scribe/open-api/patients/{{patient_id}}",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"additional_context\": \"Synthetic follow-up context.\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Delete Patient",
+      "request": {
+        "method": "DELETE",
+        "url": "{{base_url}}/v2/scribe/open-api/patients/{{patient_id}}",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Create Session",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/v2/scribe/open-api/sessions",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"external_session_id\": \"ehr-visit-001\",\n  \"patient_id\": \"{{patient_id}}\",\n  \"title\": \"Synthetic consultation\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));",
+              "if (pm.response.code < 300) { const data = pm.response.json();",
+              "if (data.id) pm.collectionVariables.set(\"session_id\", data.id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "List Sessions",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/v2/scribe/open-api/sessions",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get Session",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/v2/scribe/open-api/sessions/{{session_id}}",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Update Session",
+      "request": {
+        "method": "PATCH",
+        "url": "{{base_url}}/v2/scribe/open-api/sessions/{{session_id}}",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"background_context\": \"Synthetic history provided by the EHR.\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Delete Session",
+      "request": {
+        "method": "DELETE",
+        "url": "{{base_url}}/v2/scribe/open-api/sessions/{{session_id}}",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get Transcript",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/v2/scribe/open-api/sessions/{{session_id}}/transcript",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Append Transcript",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/v2/scribe/open-api/sessions/{{session_id}}/transcript/segments",
+        "header": [
+          {
+            "key": "Idempotency-Key",
+            "value": "{{idempotency_key}}-scribe_api_transcript_append"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"segments\": [\n    {\n      \"speaker\": \"clinician\",\n      \"text\": \"Synthetic patient reports improved sleep.\"\n    }\n  ],\n  \"status\": \"completed\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Create Recording",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/v2/scribe/open-api/sessions/{{session_id}}/recording-uploads",
+        "header": [
+          {
+            "key": "Idempotency-Key",
+            "value": "{{idempotency_key}}-scribe_api_recording_uploads_create"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"file_name\": \"consultation.wav\",\n  \"mime_type\": \"audio/wav\",\n  \"size_bytes\": 4096,\n  \"part_count\": 1\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));",
+              "if (pm.response.code < 300) { const data = pm.response.json();",
+              "if (data.id) pm.collectionVariables.set(\"upload_id\", data.id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Upload Url",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/v2/scribe/open-api/recording-uploads/{{upload_id}}/upload-urls",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"part_number\": 1\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Complete Recording",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/v2/scribe/open-api/recording-uploads/{{upload_id}}/completion",
+        "header": [
+          {
+            "key": "Idempotency-Key",
+            "value": "{{idempotency_key}}-scribe_api_recording_upload_complete"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"parts\": [\n    {\n      \"part_number\": 1,\n      \"etag\": \"{{upload_etag}}\"\n    }\n  ],\n  \"duration_ms\": 30000\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));",
+              "if (pm.response.code < 300) { const data = pm.response.json();",
+              "if (data.transcription_job_id) pm.collectionVariables.set(\"job_id\", data.transcription_job_id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "List Templates",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/v2/scribe/open-api/templates",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Generate Note",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/v2/scribe/open-api/sessions/{{session_id}}/consult-note",
+        "header": [
+          {
+            "key": "Idempotency-Key",
+            "value": "{{idempotency_key}}-scribe_api_consult_note_create"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"template_ids\": [\n    \"{{template_id}}\"\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));",
+              "if (pm.response.code < 300) { const data = pm.response.json();",
+              "if (data.job_id) pm.collectionVariables.set(\"job_id\", data.job_id);",
+              "pm.collectionVariables.set(\"document_id\", data.document_ids[0]);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Update Consult Note",
+      "request": {
+        "method": "PATCH",
+        "url": "{{base_url}}/v2/scribe/open-api/sessions/{{session_id}}/consult-note",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"base_version\": 1,\n  \"rendered_text\": \"Clinician reviewed synthetic note.\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "List Documents",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/v2/scribe/open-api/sessions/{{session_id}}/documents",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Create Document",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/v2/scribe/open-api/sessions/{{session_id}}/documents",
+        "header": [
+          {
+            "key": "Idempotency-Key",
+            "value": "{{idempotency_key}}-scribe_api_documents_create"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Referral letter\",\n  \"template_id\": \"{{template_id}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));",
+              "if (pm.response.code < 300) { const data = pm.response.json();",
+              "if (data.id) pm.collectionVariables.set(\"document_id\", data.id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get Document",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/v2/scribe/open-api/sessions/{{session_id}}/documents/{{document_id}}",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Update Document",
+      "request": {
+        "method": "PATCH",
+        "url": "{{base_url}}/v2/scribe/open-api/sessions/{{session_id}}/documents/{{document_id}}",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"base_version\": 1,\n  \"rendered_text\": \"Clinician reviewed synthetic letter.\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Delete Document",
+      "request": {
+        "method": "DELETE",
+        "url": "{{base_url}}/v2/scribe/open-api/sessions/{{session_id}}/documents/{{document_id}}",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get Job",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/v2/scribe/open-api/jobs/{{job_id}}",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Generate Document",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/v2/scribe/open-api/sessions/{{session_id}}/documents/{{document_id}}/content",
+        "header": [
+          {
+            "key": "Idempotency-Key",
+            "value": "{{idempotency_key}}-scribe_api_document_content_generate"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));",
+              "if (pm.response.code < 300) { const data = pm.response.json();",
+              "if (data.job_id) pm.collectionVariables.set(\"job_id\", data.job_id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Custom Template Response",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/v2/scribe/open-api/sessions/{{session_id}}/client-customised-template/response",
+        "header": [
+          {
+            "key": "Idempotency-Key",
+            "value": "{{idempotency_key}}-scribe_api_custom_template_generate"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Follow-up instructions\",\n  \"prompt\": \"Summarize the plan using only supplied clinical facts.\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));",
+              "if (pm.response.code < 300) { const data = pm.response.json();",
+              "if (data.job_id) pm.collectionVariables.set(\"job_id\", data.job_id);",
+              "pm.collectionVariables.set(\"document_id\", data.document_ids[0]);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ask Ai",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/v2/scribe/open-api/sessions/{{session_id}}/ask-ai",
+        "header": [
+          {
+            "key": "Idempotency-Key",
+            "value": "{{idempotency_key}}-scribe_api_ask_ai_create"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"message\": \"Summarize the documented plan.\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));",
+              "if (pm.response.code < 300) { const data = pm.response.json();",
+              "if (data.job_id) pm.collectionVariables.set(\"job_id\", data.job_id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ask Ai Result",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/v2/scribe/open-api/sessions/{{session_id}}/ask-ai/{{job_id}}",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Clinical Codes",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/v2/scribe/open-api/sessions/{{session_id}}/clinical-codes",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Create Clinical Codes",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/v2/scribe/open-api/sessions/{{session_id}}/clinical-codes",
+        "header": [
+          {
+            "key": "Idempotency-Key",
+            "value": "{{idempotency_key}}-scribe_api_clinical_codes_create"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"code_systems\": [\n    \"icd10cm-outpatient\"\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));",
+              "if (pm.response.code < 300) { const data = pm.response.json();",
+              "if (data.job_id) pm.collectionVariables.set(\"job_id\", data.job_id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get Em Level",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/v2/scribe/open-api/sessions/{{session_id}}/clinical-codes/em-level?patient_type={{patient_type}}",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Document Templates",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/v2/scribe/open-api/templates/document-templates",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Consult Note Templates",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/v2/scribe/open-api/templates/consult-note-templates",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get Template",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/v2/scribe/open-api/templates/{{template_id}}",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Delete Patients",
+      "request": {
+        "method": "DELETE",
+        "url": "{{base_url}}/v2/scribe/open-api/patients:batch-delete",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"patient_ids\": [\n    \"{{patient_id}}\"\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Link Sessions",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/v2/scribe/open-api/patients/{{patient_id}}/sessions",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"session_ids\": [\n    \"{{session_id}}\"\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Unlink Sessions",
+      "request": {
+        "method": "DELETE",
+        "url": "{{base_url}}/v2/scribe/open-api/patients/{{patient_id}}/sessions",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"session_ids\": [\n    \"{{session_id}}\"\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Upload Context",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/v2/scribe/open-api/sessions/{{session_id}}/context-documents",
+        "header": [
+          {
+            "key": "Idempotency-Key",
+            "value": "{{idempotency_key}}-scribe_api_context_documents_create"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "files",
+              "type": "text",
+              "value": "30"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));",
+              "if (pm.response.code < 300) pm.collectionVariables.set(\"context_document_id\", pm.response.json().items[0].id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "List Context",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/v2/scribe/open-api/sessions/{{session_id}}/context-documents",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Delete Context",
+      "request": {
+        "method": "DELETE",
+        "url": "{{base_url}}/v2/scribe/open-api/sessions/{{session_id}}/context-documents",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"document_ids\": [\n    \"{{context_document_id}}\"\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Start Segments",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/v2/scribe/open-api/sessions/{{session_id}}/restful-segment-transcription",
+        "header": [
+          {
+            "key": "Idempotency-Key",
+            "value": "{{idempotency_key}}-scribe_api_segment_recordings_create"
+          }
+        ]
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));",
+              "if (pm.response.code < 300) { const data = pm.response.json();",
+              "if (data.recording_id) pm.collectionVariables.set(\"recording_id\", data.recording_id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Transcribe Segment",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/v2/scribe/open-api/sessions/{{session_id}}/restful-segment-transcription/{{recording_id}}:transcribe",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "text",
+              "value": "30"
+            },
+            {
+              "key": "index",
+              "type": "text",
+              "value": "0"
+            },
+            {
+              "key": "duration",
+              "type": "text",
+              "value": "30"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Finish Segments",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/v2/scribe/open-api/sessions/{{session_id}}/restful-segment-transcription/{{recording_id}}:finish",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "List Teams",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/v2/scribe/open-api/teams",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get Team",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/v2/scribe/open-api/teams/{{team_id}}",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "List Members",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/v2/scribe/open-api/organizations/{{organization_id}}/members",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

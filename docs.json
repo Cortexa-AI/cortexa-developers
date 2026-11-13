@@ -1,72 +1,182 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
-  "name": "Mintlify Starter Kit",
+  "name": "Cortexa Developers",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#206B57",
+    "light": "#4CB494",
+    "dark": "#174F41"
   },
   "favicon": "/favicon.svg",
-  "navigation": {
-    "pages": [
-      {
-        "group": "Getting Started",
-        "pages": [
-          "index",
-          "quickstart"
-        ]
-      }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
   "logo": {
     "light": "/logo/light.svg",
     "dark": "/logo/dark.svg"
   },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Guides",
+        "groups": [
+          {
+            "group": "Get started",
+            "pages": [
+              "index",
+              "authentication",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Build your integration",
+            "pages": [
+              "recordings",
+              "workflows",
+              "capabilities"
+            ]
+          },
+          {
+            "group": "Resources",
+            "pages": [
+              "errors",
+              "downloads"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API reference",
+        "openapi": "openapi.json",
+        "groups": [
+          {
+            "group": "Authentication",
+            "pages": [
+              "POST /v2/scribe/open-api/jwt",
+              "GET /v2/scribe/open-api/.well-known/jwks.json"
+            ]
+          },
+          {
+            "group": "Patients",
+            "pages": [
+              "POST /v2/scribe/open-api/patients",
+              "GET /v2/scribe/open-api/patients",
+              "GET /v2/scribe/open-api/patients/{patient_id}",
+              "PATCH /v2/scribe/open-api/patients/{patient_id}",
+              "DELETE /v2/scribe/open-api/patients/{patient_id}",
+              "DELETE /v2/scribe/open-api/patients:batch-delete",
+              "POST /v2/scribe/open-api/patients/{patient_id}/sessions",
+              "DELETE /v2/scribe/open-api/patients/{patient_id}/sessions"
+            ]
+          },
+          {
+            "group": "Sessions",
+            "pages": [
+              "POST /v2/scribe/open-api/sessions",
+              "GET /v2/scribe/open-api/sessions",
+              "GET /v2/scribe/open-api/sessions/{session_id}",
+              "PATCH /v2/scribe/open-api/sessions/{session_id}",
+              "DELETE /v2/scribe/open-api/sessions/{session_id}"
+            ]
+          },
+          {
+            "group": "Transcripts and recordings",
+            "pages": [
+              "GET /v2/scribe/open-api/sessions/{session_id}/transcript",
+              "POST /v2/scribe/open-api/sessions/{session_id}/transcript/segments",
+              "POST /v2/scribe/open-api/sessions/{session_id}/recording-uploads",
+              "POST /v2/scribe/open-api/recording-uploads/{upload_id}/upload-urls",
+              "POST /v2/scribe/open-api/recording-uploads/{upload_id}/completion",
+              "POST /v2/scribe/open-api/sessions/{session_id}/restful-segment-transcription",
+              "POST /v2/scribe/open-api/sessions/{session_id}/restful-segment-transcription/{recording_id}:transcribe",
+              "POST /v2/scribe/open-api/sessions/{session_id}/restful-segment-transcription/{recording_id}:finish"
+            ]
+          },
+          {
+            "group": "Templates",
+            "pages": [
+              "GET /v2/scribe/open-api/templates",
+              "GET /v2/scribe/open-api/templates/document-templates",
+              "GET /v2/scribe/open-api/templates/consult-note-templates",
+              "GET /v2/scribe/open-api/templates/{template_id}"
+            ]
+          },
+          {
+            "group": "Notes and documents",
+            "pages": [
+              "POST /v2/scribe/open-api/sessions/{session_id}/consult-note",
+              "PATCH /v2/scribe/open-api/sessions/{session_id}/consult-note",
+              "GET /v2/scribe/open-api/sessions/{session_id}/documents",
+              "POST /v2/scribe/open-api/sessions/{session_id}/documents",
+              "GET /v2/scribe/open-api/sessions/{session_id}/documents/{document_id}",
+              "PATCH /v2/scribe/open-api/sessions/{session_id}/documents/{document_id}",
+              "DELETE /v2/scribe/open-api/sessions/{session_id}/documents/{document_id}",
+              "POST /v2/scribe/open-api/sessions/{session_id}/documents/{document_id}/content",
+              "POST /v2/scribe/open-api/sessions/{session_id}/client-customised-template/response"
+            ]
+          },
+          {
+            "group": "Ask AI",
+            "pages": [
+              "POST /v2/scribe/open-api/sessions/{session_id}/ask-ai",
+              "GET /v2/scribe/open-api/sessions/{session_id}/ask-ai/{job_id}"
+            ]
+          },
+          {
+            "group": "Clinical coding",
+            "pages": [
+              "GET /v2/scribe/open-api/sessions/{session_id}/clinical-codes",
+              "POST /v2/scribe/open-api/sessions/{session_id}/clinical-codes",
+              "GET /v2/scribe/open-api/sessions/{session_id}/clinical-codes/em-level"
+            ]
+          },
+          {
+            "group": "Context documents",
+            "pages": [
+              "POST /v2/scribe/open-api/sessions/{session_id}/context-documents",
+              "GET /v2/scribe/open-api/sessions/{session_id}/context-documents",
+              "DELETE /v2/scribe/open-api/sessions/{session_id}/context-documents"
+            ]
+          },
+          {
+            "group": "Jobs",
+            "pages": [
+              "GET /v2/scribe/open-api/jobs/{job_id}"
+            ]
+          },
+          {
+            "group": "Workspace directory",
+            "pages": [
+              "GET /v2/scribe/open-api/teams",
+              "GET /v2/scribe/open-api/teams/{team_id}",
+              "GET /v2/scribe/open-api/organizations/{organization_id}/members"
+            ]
+          }
+        ]
+      }
+    ]
+  },
   "navbar": {
     "links": [
       {
-        "label": "Support",
-        "href": "mailto:support@mintlify.com"
+        "label": "GitHub",
+        "href": "https://github.com/Cortexa-AI/cortexa-developers"
       }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://app.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-      "copy",
-      "view",
-      "chatgpt",
-      "claude",
-      "perplexity",
-      "mcp",
-      "cursor",
-      "vscode"
     ]
   },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
+  "api": {
+    "playground": {
+      "display": "simple"
+    },
+    "examples": {
+      "languages": [
+        "curl",
+        "python",
+        "javascript"
+      ]
     }
-  }
+  },
+  "redirects": [
+    {
+      "source": "/introduction",
+      "destination": "/"
+    }
+  ]
 }

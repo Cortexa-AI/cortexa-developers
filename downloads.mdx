@@ -1,0 +1,59 @@
+---
+title: "Downloads"
+description: "Use the OpenAPI specification and Postman collection in your integration."
+---
+
+<Columns cols={2}>
+  <Card title="OpenAPI specification" icon="file-code" href="/openapi.json">
+    Download the partner API contract used by the API reference.
+  </Card>
+  <Card title="Postman collection" icon="download" href="/postman.json">
+    Import request examples for all 48 API operations.
+  </Card>
+</Columns>
+
+## Use the OpenAPI specification
+
+The specification describes the partner API, including its authentication schemes,
+request fields, responses, and resource schemas. The server URL is
+`https://sandbox.api.cortexanote.com`; operation paths include
+`/v2/scribe/open-api`.
+
+The downloaded contract and this site's API reference use the same file. You can
+import it into your preferred OpenAPI tooling.
+
+## Set up Postman
+
+1. Import [postman.json](/postman.json) into Postman.
+2. Complete [Authentication](/authentication) with your Cortexa integration contact.
+3. Set the collection's `api_key` and `authorization_code` locally. Keep credential
+   values out of shared or exported collections.
+4. Run **Token** to exchange the code. Its response script saves `jwt` and `grant_id`.
+5. Follow the [Quickstart](/quickstart) request order. Run individual requests for
+   your selected workflow; the collection also includes deletion operations.
+
+| Variable | Value |
+| --- | --- |
+| `base_url` | `https://sandbox.api.cortexanote.com`, without the `/v2/scribe/open-api` prefix |
+| `api_key` | The server-side key issued to your application |
+| `authorization_code` | A single-use code from the clinician's callback |
+| `jwt` | Saved from a successful token exchange |
+| `grant_id` | Saved from a successful token exchange; use in the token request body to obtain another token |
+| `template_id` | A template ID selected from **List Templates** |
+| `idempotency_key` | A distinct value for each new operation; preserve it when retrying that operation |
+
+Successful create and generation requests save the relevant resource IDs to
+collection variables. For uploads, choose your local file and set the returned
+ETag where required. See [Recordings](/recordings) for the upload sequence.
+
+To obtain another JWT, change the **Token** request body to:
+
+```json
+{"grant_id": "{{grant_id}}"}
+```
+
+## Get integration help
+
+Contact the Cortexa representative who supplied your sandbox access. Include the
+operation, HTTP status, and `X-Cortexa-Request-Id` response header when reporting an
+error. See [Errors, limits and retries](/errors) for recovery guidance.

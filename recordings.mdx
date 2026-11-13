@@ -1,0 +1,64 @@
+---
+title: Submit a recording
+description: Upload complete recordings or transcribe audio segments as they arrive.
+---
+
+This workflow uses the same JWT and session as the text quickstart. It supports
+complete audio files and ordered multipart uploads.
+
+## Create an upload
+
+`POST /sessions/SESSION_ID/recording-uploads` with a unique `Idempotency-Key`:
+
+```json
+{"file_name": "consultation.wav", "mime_type": "audio/wav", "size_bytes": 4096, "part_count": 1}
+```
+
+The response's `id` is the upload ID, not a recording ID.
+
+## Upload each part
+
+Call `POST /recording-uploads/UPLOAD_ID/upload-urls` with `{"part_number": 1}`.
+The response contains `upload_url`, `expires_at`, and required `headers`.
+PUT the audio bytes to that URL with the returned headers. Preserve the storage
+response's ETag. Repeat for each consecutive part number when `part_count` exceeds 1.
+
+Signed URLs expire after 15 minutes. Request a new URL when needed. Send the partner
+JWT only to Cortexa API endpoints; the upload URL carries its own authorization.
+
+## Complete the upload
+
+`POST /recording-uploads/UPLOAD_ID/completion` with a unique `Idempotency-Key`:
+
+```json
+{"parts": [{"part_number": 1, "etag": "ETAG_FROM_UPLOAD"}], "duration_ms": 30000}
+```
+
+HTTP 202 returns the recording `id`, `status`, and `transcription_job_id`.
+Poll that job until it finishes, retrieve `/sessions/SESSION_ID/transcript`, then
+generate a consultation note as described in [Quickstart](/quickstart).
+
+Repeat a failed network request with the same idempotency key and unchanged body.
+The API enforces the original grant's session ownership throughout the upload.
+
+## Transcribe during the consultation
+
+1. POST `/sessions/SESSION_ID/restful-segment-transcription` with an
+   `Idempotency-Key`. Save `recording_id` from the 201 response.
+2. POST `/sessions/SESSION_ID/restful-segment-transcription/RECORDING_ID:transcribe`
+   as multipart form data: `file` (audio), `index` (zero-based integer), and
+   `duration` (this chunk's duration in seconds, required). Each chunk must be at
+   most 360 seconds and 50 MiB. The response includes that chunk's `transcript`.
+3. Continue uploading independently decodable chunks. Indices may arrive out of
+   order. A duplicate index with the same bytes and duration returns its original
+   result; different content at an existing index returns 409.
+4. POST `/sessions/SESSION_ID/restful-segment-transcription/RECORDING_ID:finish`.
+   Indices must be consecutive from zero. The server sorts and offsets segments,
+   appends them to the session transcript, and returns the recording transcript.
+   Repeating finish returns the same result without appending text again.
+
+The chunk endpoint waits for transcription. On a provider/network failure, retry
+the same index with identical content. A finished recording accepts retries of
+existing chunks but rejects new indices. Create another recording to continue.
+The session transcript contains these chunks after finish; per-chunk responses
+can be displayed before then.
