@@ -1,0 +1,104 @@
+---
+title: "Authentication"
+description: "Authorize a clinician and exchange partner credentials for a JWT."
+---
+
+## Set up your application
+
+Your Cortexa integration contact provisions an application with an exact HTTPS
+callback URI, allowed scopes, and a request limit. Arrange the clinician consent
+entry point with Cortexa before starting the token exchange.
+
+The API key has the form `ctxa_APPLICATION_ID.SECRET` and is shown once. Store it
+in your server's secret manager. Use it only from your backend; do not embed it in
+your EHR frontend or include it in URLs.
+
+All token requests below use the sandbox API base:
+
+```bash
+export CORTEXA_API_BASE='https://sandbox.api.cortexanote.com/v2/scribe/open-api'
+```
+
+Load your API key into `CORTEXA_API_KEY` from your secret manager before running
+the examples.
+
+## Obtain clinician consent
+
+Authorization connects your application and external clinician ID to a Cortexa
+user and workspace. The clinician reviews the application, workspace, and requested
+permissions in the agreed consent flow.
+
+1. Create a random `state` value and bind it to the clinician's current EHR login.
+2. Use the application ID, external clinician ID, registered callback URI, and
+   requested scopes in the consent flow agreed with Cortexa.
+3. On the callback, compare `state` with the saved login-bound value.
+4. Exchange the returned `code` from your backend within 60 seconds.
+
+The callback must match the registered URI exactly. An external clinician ID
+cannot be rebound to a different Cortexa user. A partner API key or JWT cannot
+grant consent on the clinician's behalf.
+
+## Exchange the authorization code
+
+Set `CORTEXA_AUTHORIZATION_CODE` to the code received at your callback:
+
+```bash
+curl --request POST "$CORTEXA_API_BASE/jwt" \
+  --header "Cortexa-Api-Key: $CORTEXA_API_KEY" \
+  --header 'Content-Type: application/json' \
+  --data "{\"authorization_code\":\"$CORTEXA_AUTHORIZATION_CODE\"}"
+```
+
+Example response:
+
+```json
+{
+  "access_token": "JWT",
+  "token_type": "Bearer",
+  "expires_in": 900,
+  "grant_id": "GRANT_ID",
+  "scope": "scribe:generate scribe:read scribe:write"
+}
+```
+
+Each code can be used once. Save `grant_id` with your clinician and workspace
+mapping. Use the returned `expires_in` to track token expiry.
+
+## Obtain another token
+
+For an existing grant, set `CORTEXA_GRANT_ID` to the saved ID and call the same
+endpoint with your server-side API key:
+
+```bash
+curl --request POST "$CORTEXA_API_BASE/jwt" \
+  --header "Cortexa-Api-Key: $CORTEXA_API_KEY" \
+  --header 'Content-Type: application/json' \
+  --data "{\"grant_id\":\"$CORTEXA_GRANT_ID\"}"
+```
+
+Send either `authorization_code` or `grant_id`. This is a partner token exchange
+API; it does not expose OAuth discovery or refresh tokens.
+
+## Call clinical endpoints
+
+Use `Authorization: Bearer JWT` on clinical requests. The application key is used
+for token exchange; clinical endpoints use the resulting JWT.
+
+| Scope | Access |
+| --- | --- |
+| `scribe:read` | Read patients, sessions, transcripts, templates, documents, attachments, replies, jobs, and the authorized workspace directory |
+| `scribe:write` | Create, update, and delete patients, sessions, and documents; link patients; upload transcripts, audio, and context files |
+| `scribe:generate` | Generate notes, documents, custom template responses, and Ask AI replies; request clinical coding and E/M suggestions |
+
+## Token verification and revocation
+
+JWTs use RS256. Public verification keys are available at
+`https://sandbox.api.cortexanote.com/v2/scribe/open-api/.well-known/jwks.json`.
+Match `kid`, allow only RS256, and verify the issuer, audience, and expiry agreed
+for your environment. Tokens contain `client_id`, `grant_id`, `sub`, `workspace_id`,
+`scope`, `iat`, and `jti`; they contain no clinical content.
+
+Cortexa checks current application, grant, user, and workspace permissions on every
+request. Clinician revocation, account deletion, membership removal, application
+disablement, and API key rotation invalidate access. Obtain consent again when
+a grant has been revoked. Use the credentials assigned for each environment.

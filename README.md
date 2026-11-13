@@ -1,55 +1,95 @@
-# Mintlify Starter Kit
+# Cortexa Developers
 
-Use the starter kit to get your docs deployed and ready to customize.
+Public developer documentation for the Cortexa Scribe API, built with Mintlify.
 
-Click the green **Use this template** button at the top of this repo to copy the Mintlify starter kit. The starter kit contains examples with
+## Preview locally
 
-- Guide pages
-- Navigation
-- Customizations
-- API reference pages
-- Use of popular components
-
-**[Follow the full quickstart guide](https://starter.mintlify.com/quickstart)**
-
-## AI-assisted writing
-
-Set up your AI coding tool to work with Mintlify:
+Use Node.js 22 LTS or 24 LTS. From this repository's root:
 
 ```bash
-npx skills add https://mintlify.com/docs
+npx --yes mint@4.3.23 dev
 ```
 
-This command installs Mintlify's documentation skill for your configured AI tools like Claude Code, Cursor, Windsurf, and others. The skill includes component reference, writing standards, and workflow guidance.
+Open the local URL printed by the CLI. To use another port:
 
-See the guides for [Claude Code](https://www.mintlify.com/docs/guides/claude-code), [Codex](https://www.mintlify.com/docs/guides/codex), [Cursor](https://www.mintlify.com/docs/guides/cursor), and [Devin Desktop](https://www.mintlify.com/docs/guides/devin-desktop) for tool-specific setup.
-
-## Development
-
-Install the [Mintlify CLI](https://www.npmjs.com/package/mint) to preview your documentation changes locally. To install, use the following command:
-
-```
-npm i -g mint
+```bash
+npx --yes mint@4.3.23 dev --port 3100
 ```
 
-Run the following command at the root of your documentation, where your `docs.json` is located:
+## Check a change
 
+```bash
+npx --yes mint@4.3.23 validate
+npx --yes mint@4.3.23 broken-links
 ```
-mint dev
+
+Create a feature branch and open a pull request targeting `main`. Review the
+preview before merging. Avoid pushing documentation changes directly to `main`.
+
+## Content
+
+| File | Purpose |
+| --- | --- |
+| `index.mdx` | Product overview, sandbox access, and resource ownership |
+| `authentication.mdx` | Clinician consent, token exchange, scopes, and revocation |
+| `quickstart.mdx` | First note with cURL and synthetic data |
+| `recordings.mdx` | Complete recordings and segmented transcription |
+| `workflows.mdx` | Documents, Ask AI, coding, attachments, and patient links |
+| `capabilities.mdx` | Supported API workflows and integration scope |
+| `errors.mdx` | Errors, request limits, retries, and pagination |
+| `downloads.mdx` | OpenAPI and Postman usage |
+| `openapi.json` | Generated partner contract for the API reference |
+| `postman.json` | Generated request collection with empty credential variables |
+| `docs.json` | Branding, navigation, API reference, and redirects |
+| `logo/`, `favicon.svg` | Cortexa branding assets |
+
+Edit partner-facing guides in this repository. The API implementation and contract
+exporter remain in `Cortexa-AI/cortexa-server`. Internal deployment and administrator
+runbooks belong in the server repository.
+
+## Refresh the API contract
+
+From a configured `cortexa-server` checkout, with the two repositories next to each
+other, run:
+
+```bash
+python -m scripts.export_scribe_open_api \
+  --base-url https://sandbox.api.cortexanote.com \
+  --output-dir ../cortexa-developers
 ```
 
-View your local preview at `http://localhost:3000`.
+The command regenerates only `openapi.json` and `postman.json`. Preserve those files
+as generated artifacts; change request or response definitions in the backend.
+Export only the partner contract, not the internal `/v2/openapi.json`.
 
-## Publishing changes
+When operations change, update the API reference groups in `docs.json` and the
+capabilities guide. Navigation lists each operation explicitly, so new operations
+must be added to the appropriate group. Validate the docs and review the generated
+contract diff in the same documentation PR.
 
-Install our GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app) to propagate changes from your repo to your deployment. Changes are deployed to production automatically after pushing to the default branch.
+The OpenAPI server and Postman `base_url` contain the origin only. Their paths
+already include `/v2/scribe/open-api`; do not append the prefix to either base URL.
 
-## Need help?
+## Publishing handoff
 
-### Troubleshooting
+The repository is ready for a Mintlify project with:
 
-- If your dev environment isn't running: Run `mint update` to ensure you have the most recent version of the CLI.
-- If a page loads as a 404: Make sure you are running in a folder with a valid `docs.json`.
+- GitHub repository: `Cortexa-AI/cortexa-developers`
+- Production branch: `main`, after the documentation PR is merged
+- Documentation directory: repository root
+- Configuration file: `docs.json`
 
-### Resources
-- [Mintlify documentation](https://mintlify.com/docs)
+The project owner configures the Mintlify connection and custom domain. Local
+validation does not establish that the hosted site or the API deployment is live.
+
+API reference pages initially show request examples in simple mode. To enable
+browser requests after the documentation domain is configured, allow that origin
+in the API's CORS configuration and set `api.playground` in `docs.json` to:
+
+```json
+{"display": "interactive", "proxy": false}
+```
+
+Coordinate partner credentials, the clinician consent entry point, and production
+access with the API owner. These guides document the partner contract; they do not
+create partner accounts or deploy the consent flow.

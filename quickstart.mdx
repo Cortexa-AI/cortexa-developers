@@ -1,47 +1,122 @@
 ---
-title: "Quickstart"
-description: "Begin with a guide on the fastest path to a successful outcome"
+title: "Generate your first note"
+description: "Create a synthetic encounter, submit a transcript, and retrieve a clinical note."
+sidebarTitle: "Quickstart"
 ---
 
-Describe how someone begins using your product. What is the first thing they need to do? Are there any prerequisites?
+Complete [Authentication](/authentication) and obtain a JWT with `scribe:read`,
+`scribe:write`, and `scribe:generate`. The clinician needs access to a note template
+and the relevant generation entitlement.
 
-A quickstart should take someone from zero to using your product. They'll get a quick win and a sense of what they can accomplish.
+## Prepare your requests
 
-## Prerequisites
+The examples use cURL. Replace the placeholder token locally, then replace each
+resource ID with the value returned by the preceding request.
 
-Before you begin, you must have:
+```bash
+export CORTEXA_API_BASE='https://sandbox.api.cortexanote.com/v2/scribe/open-api'
+export CORTEXA_JWT='YOUR_ACCESS_TOKEN'
+```
 
-- Requirement one (for example, Node.js 18+, a free account, an API key)
-- Requirement two (for example, a compatible device, a compatible browser, a compatible operating system)
+## 1. Create a patient
 
-## Get started
+```bash
+curl --request POST "$CORTEXA_API_BASE/patients" \
+  --header "Authorization: Bearer $CORTEXA_JWT" \
+  --header 'Content-Type: application/json' \
+  --data '{"external_patient_id":"ehr-patient-001","name":"Synthetic Patient"}'
+```
 
-<Steps>
-  <Step title="Install">
-    Describe how to install your product or sign up.
+Save the returned `id`:
 
-    ```bash
-    npm install your-package
-    ```
-  </Step>
-  <Step title="Configure">
-    Describe any setup or configuration needed before first use.
+```bash
+export CORTEXA_PATIENT_ID='PATIENT_ID'
+```
 
-    ```bash
-    your-cli init
-    ```
-  </Step>
-  <Step title="Run it">
-    Show the first thing a user does to see it working.
+You can look it up later with
+`GET /patients?external_patient_id=ehr-patient-001`. Creating the same external ID
+again returns the existing patient within your grant.
 
-    ```bash
-    your-cli start
-    ```
-  </Step>
-</Steps>
+## 2. Create the encounter
 
-<Tip>
-  Give people a way to get help. This could be a link to a support page, a chat with a customer support agent, or a forum for your product.
+```bash
+curl --request POST "$CORTEXA_API_BASE/sessions" \
+  --header "Authorization: Bearer $CORTEXA_JWT" \
+  --header 'Content-Type: application/json' \
+  --data "{\"external_session_id\":\"ehr-visit-001\",\"patient_id\":\"$CORTEXA_PATIENT_ID\",\"title\":\"Synthetic consultation\",\"background_context\":\"Synthetic follow-up appointment.\"}"
+```
 
-  Example: Need help? Reach out to us at [support@yourcompany.com](mailto:support@yourcompany.com).
-</Tip>
+Save the returned session `id`:
+
+```bash
+export CORTEXA_SESSION_ID='SESSION_ID'
+```
+
+You may omit `patient_id` when creating a session before selecting the patient.
+
+## 3. Submit a transcript
+
+```bash
+curl --request POST "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/transcript/segments" \
+  --header "Authorization: Bearer $CORTEXA_JWT" \
+  --header 'Content-Type: application/json' \
+  --header 'Idempotency-Key: visit-001-transcript-1' \
+  --data '{"segments":[{"speaker":"clinician","text":"Synthetic patient reports improved sleep."}],"status":"completed"}'
+```
+
+Use `partial` while appending and `completed` on the final batch. Reuse the same
+idempotency key and body when retrying a batch. Use a new key for a distinct batch.
+
+## 4. Select a template and generate a note
+
+```bash
+curl "$CORTEXA_API_BASE/templates" \
+  --header "Authorization: Bearer $CORTEXA_JWT"
+```
+
+Choose a template from the response's `items`, then submit its `id`:
+
+```bash
+export CORTEXA_TEMPLATE_ID='TEMPLATE_ID'
+
+curl --request POST "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/consult-note" \
+  --header "Authorization: Bearer $CORTEXA_JWT" \
+  --header 'Content-Type: application/json' \
+  --header 'Idempotency-Key: visit-001-note-1' \
+  --data "{\"template_ids\":[\"$CORTEXA_TEMPLATE_ID\"]}"
+```
+
+The response uses HTTP 202 and contains `job_id`, `job_ids`, `document_ids`, and
+`status`. Save the job ID and the document ID from `document_ids`. Existing ready
+outputs may be reused: if `job_id` is null and `status` is `succeeded`, retrieve
+the documents directly.
+
+## 5. Retrieve the result
+
+```bash
+export CORTEXA_JOB_ID='JOB_ID'
+export CORTEXA_DOCUMENT_ID='DOCUMENT_ID'
+
+curl "$CORTEXA_API_BASE/jobs/$CORTEXA_JOB_ID" \
+  --header "Authorization: Bearer $CORTEXA_JWT"
+```
+
+Poll until the status is `succeeded` or `failed`, starting at about two-second
+intervals and backing off for longer jobs. Inspect `failure_code` on failure.
+Once the job succeeds, retrieve the document:
+
+```bash
+curl "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/documents/$CORTEXA_DOCUMENT_ID" \
+  --header "Authorization: Bearer $CORTEXA_JWT"
+```
+
+The result includes structured `content`, `rendered_text`, and `status`. Present
+the draft for clinical review before saving it to your EHR. Use
+`GET /sessions/SESSION_ID/documents` to list all documents for the session.
+
+## Continue your integration
+
+- [Recordings](/recordings): generate notes from audio.
+- [Extended workflows](/workflows): edit documents, add context, and request coding.
+- [Errors and retries](/errors): handle limits, conflicts, and asynchronous work.
+- [Downloads](/downloads): run individual requests in Postman.

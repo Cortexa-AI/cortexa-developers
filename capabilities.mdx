@@ -1,0 +1,74 @@
+---
+title: "API capabilities"
+description: "Explore the Scribe API workflows and their integration requirements."
+---
+
+The API reference contains 48 operations under `/v2/scribe/open-api`. Use the
+**API reference** tab for request fields, responses, and authentication requirements.
+
+## Supported workflows
+
+| Area | Capabilities |
+| --- | --- |
+| Authentication | Exchange an authorization code or existing grant for a JWT; retrieve public signing keys |
+| Patients | Create, list, read, update, and delete patients; batch delete; link and unlink sessions |
+| Sessions | Create, list, read, update, and delete consultation sessions |
+| Transcripts and recordings | Append transcript segments; read transcripts; upload complete recordings in parts; transcribe and finish audio segments |
+| Templates | List available templates by category and retrieve an individual template |
+| Notes and documents | Generate and edit consult notes; create, retrieve, edit, and delete documents; generate document content and custom template responses |
+| Ask AI | Submit a question about a session and retrieve the resulting answer |
+| Clinical coding | Request and retrieve clinical code suggestions; assess E/M level |
+| Context documents | Upload, list, and remove session attachments |
+| Jobs | Poll asynchronous work for completion or failure |
+| Workspace directory | Retrieve the authorized workspace and its active members |
+
+## Authorization and scope
+
+Each grant is tied to one clinician and workspace. Patient and session access is
+scoped to that grant. The directory uses the authorized workspace ID for both
+team and organization identifiers; it does not provide cross-workspace access.
+
+Read, write, and generation permissions are separate. See
+[Authentication](/authentication) for scopes. Existing clinical permissions, plan
+entitlements, and generation quotas also apply.
+
+## Asynchronous work
+
+Note and document generation, Ask AI, and clinical coding use jobs. Poll the job
+or the workflow's result endpoint until it finishes. A successful job makes its
+result available through the relevant document or result endpoint.
+
+Clinical coding GET can start a run when no result exists and returns HTTP 202
+while pending. Both clinical coding GET and E/M GET require `scribe:generate` and
+return `Cache-Control: no-store`.
+
+## Audio and attachments
+
+Segmented transcription accepts independently decodable chunks in any upload
+order. Each chunk needs a zero-based index and duration and must be at most six
+minutes and 50 MiB. Finishing requires consecutive indices and appends the ordered
+transcript once. See [Recordings](/recordings).
+
+Context uploads support PDF, DOCX, TXT, Markdown, JPEG, PNG, and WebP. Wait for
+extraction and indexing before generating a note. Removing an attachment changes
+future generation context; it leaves existing generated documents and the
+clinician's library copy intact.
+
+## Clinical coding and E/M
+
+Available code sets depend on the configured coding provider and the clinician's
+entitlements. E/M suggestions cover US office and outpatient MDM-based assessment
+for new or established patients. They include supporting evidence, the source
+document version, and an insufficient-documentation state.
+
+E/M assessment does not cover time-based billing or facility-specific levels.
+Clinicians must review coding and E/M suggestions before billing.
+
+## Integration scope
+
+The API provides backend-to-backend access. Your EHR supplies recording controls,
+coordinates consent with Cortexa, and saves reviewed results. Embedded widgets,
+webhooks, and vendor-specific FHIR/HL7 adapters are outside the current scope.
+
+Coordinate real audio, document generation, and EHR acceptance testing with your
+Cortexa integration contact before production use.

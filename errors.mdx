@@ -1,0 +1,35 @@
+---
+title: Errors, limits and retries
+description: Handle authentication, resource access and asynchronous work consistently.
+---
+
+Responses use the Cortexa v2 resource format: successful resources are returned
+directly. Errors contain `message` and an `errors` array with machine-readable
+`code` values. Save the `X-Cortexa-Request-Id` response header when requesting support.
+
+| HTTP status | Meaning | Action |
+| --- | --- | --- |
+| 400 | Invalid application, callback, or request | Fix the request |
+| 401 | Invalid key, expired token, or revoked grant | Renew the token or authorize again |
+| 403 | Missing scope or lost workspace permission | Check the granted permissions |
+| 404 | Resource unavailable to this grant | Check the returned resource ID and grant |
+| 409 | Conflicting identity or reused idempotency key with changed contents | Correct the identity or request |
+| 422 | Invalid body or unmet clinical workflow requirement | Inspect the error code |
+| 429 | Application request limit reached | Honor `Retry-After` |
+| 503 | API configuration or request accounting unavailable | Retry later with backoff |
+
+Limits are shared by all grants under an application. The default limit is 120
+authenticated requests per minute, including token exchange. Cortexa can assign a
+different limit. Existing plan and generation quotas apply in addition to request limits.
+
+Transcript submission, upload creation/completion and note generation require
+`Idempotency-Key`. Keep it stable across retries of the same operation; use a new
+key for a new operation. Keys are scoped to the grant and operation and retained for seven days.
+
+List endpoints accept `page` and `per_page` (1–100) and return `items`, `page`,
+`per_page`, `total` and `has_next`. Job polling returns status, not note contents;
+retrieve documents after the job succeeds.
+
+Requests are audited using application, grant, operation and user/workspace IDs.
+Do not put patient information in idempotency keys or persist API keys, JWTs,
+audio or clinical request/response bodies in integration logs.
