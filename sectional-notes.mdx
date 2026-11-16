@@ -1,0 +1,85 @@
+---
+title: "Map note sections to EHR fields"
+description: "Convert a saved note into sections and attach your EHR field identifiers."
+---
+
+Use sectional notes when your EHR stores history, assessment, and plan in separate
+fields. Conversion reads the latest completed consult note; it does not generate
+new clinical facts or write to the EHR. You need `scribe:write` for conversion and
+mapping changes, and `scribe:read` to retrieve template mappings.
+
+## Convert a saved note
+
+```bash
+curl --request POST "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/consult-note/sectional-note-conversion" \
+  --header "Authorization: Bearer $CORTEXA_JWT"
+```
+
+Example response for a note with `# History` and `# Plan` headings:
+
+```json
+{
+  "document_id":"document_example",
+  "document_version":2,
+  "clinical_note":{
+    "History":{"content":"Synthetic follow-up.\n\n","linked_ehr_section_id":null},
+    "Plan":{"content":"Review in two weeks.\n","linked_ehr_section_id":null}
+  },
+  "mapping_stale":false
+}
+```
+
+Conversion uses the highest-level Markdown section headings. A single overall
+title followed by lower headings is kept in `Preamble`, and those lower headings
+become sections. Other nested headings remain inside their parent section. Code-fence headings are not treated
+as sections. Text before the first heading becomes `Preamble`; a note without
+headings becomes `Note`. Duplicate headings receive suffixes such as `Plan (2)`.
+Section body text and Markdown are preserved.
+
+## Save a template mapping
+
+Map headings once for this grant and template:
+
+```bash
+curl --request PUT "$CORTEXA_API_BASE/templates/$CORTEXA_TEMPLATE_ID/section-mappings" \
+  --header "Authorization: Bearer $CORTEXA_JWT" \
+  --header 'Content-Type: application/json' \
+  --data '{"section_mappings":[
+    {"section_heading":"History","linked_ehr_section_id":"history_text"},
+    {"section_heading":"Plan","linked_ehr_section_id":"plan_text"}
+  ]}'
+```
+
+`PUT` replaces the full mapping; an empty array clears it. You can map up to 100
+unique headings from the visible template's current Markdown body. Your mapping is
+an overlay for **this grant**: it does not change the shared template or another
+partner's mapping. Built-in templates without an accessible detail record cannot
+be mapped this way; use per-note links instead.
+
+`GET /templates/{template_id}/section-mappings` returns the saved template version
+and `stale`. Re-save after reviewing a changed template. During conversion, a
+mapping is applied only when its template version matches the version used to
+create the note; otherwise `mapping_stale` is true and the template links are omitted.
+
+## Override a field for one note
+
+```bash
+curl --request PATCH "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/consult-note/link-section" \
+  --header "Authorization: Bearer $CORTEXA_JWT" \
+  --header 'Content-Type: application/json' \
+  --data '{"base_version":2,"section_heading":"Plan","linked_ehr_section_id":"follow_up_plan"}'
+```
+
+Use the version and exact heading from conversion. An outdated version returns
+`409 VERSION_CONFLICT`; an unknown heading returns `422 UNKNOWN_NOTE_SECTION`.
+The link is saved for that document version. Editing or regenerating the note
+invalidates its per-note links; convert and review the new version again. Linking
+changes the mapping only, not the clinical text or its document version. Concurrent
+links to the same heading use the last saved value.
+
+## Write the reviewed result
+
+Display the content and destinations for clinician review. Your EHR adapter can
+then write each section to its linked field. A [reviewed connector](/connectors)
+can perform that write with explicit clinician approval. Conversion alone never
+writes an external record.

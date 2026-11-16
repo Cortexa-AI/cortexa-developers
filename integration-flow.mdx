@@ -16,8 +16,9 @@ one clinician seeing one synthetic patient, Alex Example.
 | Your backend | Keeps the API key, exchanges tokens, calls the API, and saves reviewed output to your EHR |
 | Cortexa | Checks authorization, processes audio and context, generates output, and exposes results |
 
-The API does not supply an embedded recording interface or write directly into
-your EHR. Your application implements those parts of the workflow.
+Use the [Widget](/widget) for embedded recording and review, or build your own
+interface with the [SDK](/javascript-sdk). For EHR write-back, use your adapter or
+a [reviewed connector](/connectors) with clinician approval.
 
 ## Connect a clinician
 
@@ -63,13 +64,13 @@ exact exchange. Coordinate the consent entry point during [sandbox onboarding](/
     transcription before generating the final note.
   </Step>
   <Step title="Request the note">
-    Select an available template and request a consult note. A `202` response
-    gives you job and document IDs. It confirms acceptance, not completion.
+    Select an available template and request a consult note. A `200` streaming
+    response starts with document and job IDs, then delivers generated text.
   </Step>
-  <Step title="Wait and retrieve">
-    Poll each returned job. When it succeeds, retrieve the document's
-    `rendered_text` and `content`. If the receipt reuses ready output and has no
-    jobs, retrieve its documents directly.
+  <Step title="Display text and receive the result">
+    Append each `output.delta` to the draft. The final `output.ready` contains
+    the saved document, including `rendered_text`, `content`, and its version.
+    See [Streaming](/streaming) for reconnects and background JSON mode.
   </Step>
   <Step title="Review and save">
     Show the draft to the clinician. Save edits to Cortexa using the document's
@@ -96,9 +97,9 @@ before requesting output that should use them.
 | `grant_id` | Clinician/workspace authorization | Token response |
 | Patient `id` | Patient within that grant | Patient creation or lookup |
 | Session `id` | Consultation within that grant | Session creation or lookup |
-| `job_id` / `job_ids` | Background work | Generation or processing receipt |
-| `document_ids` | Generated outputs | Generation receipt |
-| `current_version` | Current editable document revision | Document GET |
+| `job_id` / `job_ids` | Background work | `generation.started` or a processing receipt |
+| `document_ids` | Generated outputs | `generation.started` or a JSON generation receipt |
+| `current_version` | Current editable document revision | `output.ready` or document GET |
 
 Use the same grant throughout the workflow. A session created under a different
 grant is not accessible just because both grants belong to the same application.

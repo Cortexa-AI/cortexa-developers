@@ -7,12 +7,16 @@ sidebarTitle: "Jobs and results"
 Some requests finish after their HTTP response. A `202` response means the work
 was accepted; the job tells you when the result is ready.
 
+Consult-note and document-content generation [stream text and the saved result](/streaming)
+by default. Use this polling flow when you explicitly request `?stream=false`,
+or for the other asynchronous operations below.
+
 ## Which ID should you poll?
 
 | Workflow | Job reference | Where to get the result |
 | --- | --- | --- |
-| Consult note or custom template | `job_ids`, with `job_id` for a single/default reference | Returned `document_ids` |
-| Generate an existing document's content | `job_id` | The document you requested |
+| Consult note with `stream=false`, or custom template | `job_ids`, with `job_id` for a single/default reference | Returned `document_ids` |
+| Generate document content with `stream=false` | `job_id` | The document you requested |
 | Complete an audio upload | `transcription_job_id`, when returned | Session transcript |
 | Ask AI | `job_id` | Session's Ask AI result endpoint |
 | Clinical coding | `job_id`, when returned | Session's clinical-codes endpoint |
@@ -72,5 +76,5 @@ request. Resolve the failure and use a new operation/key when intentionally
 requesting new work. For an existing document, use its
 [content-generation endpoint](/documents#generate-or-regenerate-content).
 
-The public API uses polling. It does not expose completion webhooks, a generic
-job cancellation endpoint, or a job retry endpoint.
+The public API does not expose completion webhooks, a generic job cancellation
+endpoint, or a job retry endpoint.

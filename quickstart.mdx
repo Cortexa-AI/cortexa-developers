@@ -87,55 +87,48 @@ export CORTEXA_TEMPLATE_ID
 If the list is empty, arrange template access with your integration contact.
 Do not copy a template ID from another user's example.
 
-## 5. Request the note
+## 5. Stream the note
 
 ```bash
-generation_response=$(curl --fail-with-body --request POST "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/consult-note" \
+curl --no-buffer --fail-with-body --request POST "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/consult-note" \
   --header "Authorization: Bearer $CORTEXA_JWT" \
   --header 'Content-Type: application/json' \
+  --header 'Accept: text/event-stream' \
   --header "Idempotency-Key: $CORTEXA_DEMO_ID-note-1" \
   --data "$(jq -n --arg template "$CORTEXA_TEMPLATE_ID" \
-    '{template_ids:[$template],output_language_code:"en"}')")
-
-printf '%s\n' "$generation_response" | jq .
-export CORTEXA_JOB_ID=$(jq -r '.job_id // empty' <<< "$generation_response")
-export CORTEXA_DOCUMENT_ID=$(jq -r '.document_ids[0]' <<< "$generation_response")
+    '{template_ids:[$template],output_language_code:"en"}')" \
+  | tee ./cortexa-note-events.txt
 ```
 
-A typical `202` receipt looks like:
+The `200` response stays open while generation runs. You will see
+`generation.started`, followed by text in `output.delta` events, and then an
+`output.ready` event containing the saved document. No polling is needed.
+Completed output may be returned immediately without deltas.
 
-```json
-{
-  "job_id": "job_example",
-  "job_ids": ["job_example"],
-  "status": "queued",
-  "document_ids": ["document_example"]
-}
-```
+The local file contains the synthetic note. Use synthetic data for this example;
+avoid saving clinical response bodies to ordinary logs in your integration.
 
-It identifies the work; it is not the finished note. If ready output is reused,
-`job_id` may be null and `status` may already be `succeeded`. In that case skip
-polling and retrieve the document.
+## 6. Read the completed note
 
-## 6. Wait and retrieve the note
-
-When `CORTEXA_JOB_ID` is nonempty, check the job:
+This example requested one template. Extract its final document from the saved
+SSE events:
 
 ```bash
-curl --fail-with-body "$CORTEXA_API_BASE/jobs/$CORTEXA_JOB_ID" \
-  --header "Authorization: Bearer $CORTEXA_JWT"
+sed -n 's/^data: //p' ./cortexa-note-events.txt \
+  | jq -s '[.[] | select(.document.status == "ready") | .document] | last' \
+  > ./cortexa-note.json
+
+jq -e '.id != null' ./cortexa-note.json
+export CORTEXA_DOCUMENT_ID=$(jq -r '.id' ./cortexa-note.json)
+jq -r '.rendered_text' ./cortexa-note.json
 ```
 
-Repeat while pending, starting around every two seconds and backing off for
-longer jobs. Stop on `succeeded`, `failed`, or `cancelled`. On failure, inspect
-`failure_code`; see [Jobs](/jobs). Once it succeeds, retrieve the document:
+If no ready document was returned, handle the failure event or reconnect using
+the same request and key. A closed stream alone is not success. The
+[Streaming guide](/streaming) explains failures, reconnects, and the optional
+`?stream=false` JSON mode for background integrations.
 
-```bash
-curl --fail-with-body "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/documents/$CORTEXA_DOCUMENT_ID" \
-  --header "Authorization: Bearer $CORTEXA_JWT"
-```
-
-The result includes `rendered_text`, structured `content`, `status`, and
+The final document includes `rendered_text`, structured `content`, `status`, and
 `current_version`. Present the text for clinician review. To retain edits in
 Cortexa, [save a versioned document update](/documents#save-an-edit). Use your own
 EHR API to save the reviewed text into the mapped encounter.

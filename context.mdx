@@ -78,11 +78,36 @@ Replace the illustrative ID with one returned by the attachment list. The
 response is `{"deleted": true}`. This detaches the files from the session; it
 does not delete the clinician's library copy or rewrite existing generated notes.
 
-## Include relevant history explicitly
+## Link previous consultations
 
-Your application chooses which available history to submit. The public API does
-not provide a previous-session linking endpoint that automatically imports old
-notes as context. Include relevant authorized history as background text or an
-attachment when preparing the session.
+Use `PUT /sessions/{session_id}/context/sessions` to choose previous consultations
+whose notes provide context for future generation:
+
+```bash
+curl --request PUT "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/context/sessions" \
+  --header "Authorization: Bearer $CORTEXA_JWT" \
+  --header 'Content-Type: application/json' \
+  --data '{"session_ids":["previous_session_example"]}'
+```
+
+Choose up to 20 other sessions for the **same patient and grant**. Each source
+needs a completed consult note. The response and corresponding GET return the
+linked session IDs. Each generation reads the latest completed consult note from
+each linked session, including saved edits. You do not need to link the session
+again after editing or generating a new source note. An empty list removes every link.
+
+Linked notes can provide generation evidence without new audio. They are marked
+as historical sources, distinct from the current consultation's transcript.
+An active or failed transcription still needs resolution before generation.
+Deleted notes are excluded; if another completed consult note exists in that
+session, generation uses the latest remaining one. Deleting a source session,
+changing its patient association, or revoking the grant excludes that source.
+Existing output is not
+rewritten by a context change; regenerate deliberately when needed.
+
+A different patient returns `422 CONTEXT_PATIENT_MISMATCH`; a resource outside the
+grant returns `404`; a source without a completed note returns
+`409 CONSULT_NOTE_REQUIRED`. Updates are atomic: an invalid source leaves the
+previous links in place.
 
 Continue with [consult notes](/notes) or [documents](/documents).

@@ -12,7 +12,7 @@ access. Arrange sandbox access and the consent entry point before starting.
 | Credential | Who uses it | Purpose |
 | --- | --- | --- |
 | Clinician login token | The Cortexa sign-in/consent flow | Identify the clinician and create or revoke authorization |
-| Application API key | Your backend | Exchange an authorization code or valid grant ID at `POST /jwt` |
+| Application API key | Your backend | Exchange a code/grant for a JWT; manage connector registrations; query application usage |
 | Partner JWT | Your API integration | Call clinical Open API endpoints with `Authorization: Bearer ...` |
 
 The API key and the clinician's normal login token are not accepted in place of a
@@ -163,3 +163,11 @@ the relevant environment.
 | `422` on token exchange | Send exactly one of `authorization_code` or `grant_id` |
 
 Continue with [your first note](/quickstart).
+
+## Credential exceptions for platform services
+
+Clinical patient, session, document, and clinician-connection endpoints require a
+Partner JWT. Application connector registration/list/update uses the server-side
+API key. [Usage queries](/usage) accept either credential: an API key reads the
+application's grants, while a JWT reads only its own grant. A normal clinician
+login token is reserved for Cortexa's clinician management and approval surfaces.

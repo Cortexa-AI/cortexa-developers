@@ -30,6 +30,7 @@
           {
             "group": "Prepare the consultation",
             "pages": [
+              "session-workflow",
               "patients",
               "sessions",
               "context"
@@ -48,8 +49,11 @@
             "pages": [
               "templates",
               "notes",
+              "streaming",
               "documents",
-              "custom-templates"
+              "custom-templates",
+              "sectional-notes",
+              "structured-responses"
             ]
           },
           {
@@ -64,7 +68,11 @@
             "pages": [
               "jobs",
               "workspace-directory",
-              "workflows"
+              "workflows",
+              "javascript-sdk",
+              "widget",
+              "connectors",
+              "usage"
             ]
           },
           {
@@ -184,6 +192,46 @@
               "GET /v2/scribe/open-api/teams",
               "GET /v2/scribe/open-api/teams/{team_id}",
               "GET /v2/scribe/open-api/organizations/{organization_id}/members"
+            ]
+          },
+          {
+            "group": "Session workflows and history",
+            "pages": [
+              "POST /v2/scribe/open-api/workflows/session",
+              "PUT /v2/scribe/open-api/sessions/{session_id}/context/sessions",
+              "GET /v2/scribe/open-api/sessions/{session_id}/context/sessions"
+            ]
+          },
+          {
+            "group": "Sections and structured forms",
+            "pages": [
+              "PUT /v2/scribe/open-api/templates/{template_id}/section-mappings",
+              "GET /v2/scribe/open-api/templates/{template_id}/section-mappings",
+              "POST /v2/scribe/open-api/sessions/{session_id}/consult-note/sectional-note-conversion",
+              "PATCH /v2/scribe/open-api/sessions/{session_id}/consult-note/link-section",
+              "POST /v2/scribe/open-api/sessions/{session_id}/structured-responses",
+              "GET /v2/scribe/open-api/sessions/{session_id}/structured-responses/{result_id}"
+            ]
+          },
+          {
+            "group": "Partner usage",
+            "pages": [
+              "POST /v2/scribe/open-api/usage/query"
+            ]
+          },
+          {
+            "group": "External connectors",
+            "pages": [
+              "POST /v2/scribe/open-api/connectors",
+              "GET /v2/scribe/open-api/connectors",
+              "PUT /v2/scribe/open-api/connectors/{connector_id}",
+              "PUT /v2/scribe/open-api/connectors/{connector_id}/connection",
+              "DELETE /v2/scribe/open-api/connectors/{connector_id}/connection",
+              "GET /v2/scribe/open-api/connectors/tools",
+              "POST /v2/scribe/open-api/connectors/{connector_id}/oauth/authorize",
+              "POST /v2/scribe/open-api/connectors/{connector_id}/oauth/complete",
+              "POST /v2/scribe/open-api/connectors/{connector_id}/calls",
+              "GET /v2/scribe/open-api/connector-calls/{call_id}"
             ]
           }
         ]

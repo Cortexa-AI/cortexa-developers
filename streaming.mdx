@@ -1,0 +1,154 @@
+---
+title: "Stream generated text"
+description: "Display notes as they are generated, receive the saved result, and reconnect without starting duplicate work."
+sidebarTitle: "Streaming"
+---
+
+Consult-note and document-content generation return **server-sent events (SSE)**
+by default. Keep the response open, display incoming text, and use the completed
+document from the same connection. You do not need to poll during this flow.
+
+| Operation | Endpoint |
+| --- | --- |
+| Generate consult notes | `POST /sessions/{session_id}/consult-note` |
+| Generate an existing document | `POST /sessions/{session_id}/documents/{document_id}/content` |
+
+Both require a Partner JWT with `scribe:generate`, access to the session, and an
+`Idempotency-Key`. Prepare the transcript and context before requesting output.
+See [Notes](/notes) and [Documents](/documents) for their request fields.
+
+## Open the stream
+
+```bash
+curl --no-buffer --fail-with-body --request POST \
+  "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/consult-note" \
+  --header "Authorization: Bearer $CORTEXA_JWT" \
+  --header 'Content-Type: application/json' \
+  --header 'Accept: text/event-stream' \
+  --header 'Idempotency-Key: visit-001-note-1' \
+  --data '{"output_language_code":"en"}'
+```
+
+The response is `200 OK` with `Content-Type: text/event-stream`. cURL's
+`--no-buffer` displays events as they arrive. A typical sequence is:
+
+```text
+event: generation.started
+data: {"document_ids":["document_example"],"job_ids":["job_example"]}
+
+id: event_1
+event: output.generating
+data: {"document_id":"document_example","reset":true}
+
+id: event_2
+event: output.delta
+data: {"document_id":"document_example","data":"Synthetic draft: "}
+
+id: event_3
+event: output.delta
+data: {"document_id":"document_example","data":"the patient reports improved sleep."}
+
+id: event_4
+event: output.ready
+data: {"document":{"id":"document_example","session_id":"session_example","status":"ready","title":"Consultation note","rendered_text":"Synthetic draft: the patient reports improved sleep.","content":{},"generation_job_id":"job_example","failure_code":null,"current_version":1}}
+
+```
+
+IDs and text in this example are illustrative. Save the actual returned IDs.
+Event IDs are opaque cursors; do not generate or interpret them yourself.
+
+## Handle each event
+
+| Event | Data | Client action |
+| --- | --- | --- |
+| `generation.started` | `document_ids`, `job_ids` | Track the requested documents and any pending jobs |
+| `output.generating` | `document_id`, `reset` | Clear that document's partial text when `reset` is true |
+| `output.delta` | `document_id`, `data` | Append `data` to that document's partial text |
+| `output.ready` | `document` | Replace partial text with the saved document's `rendered_text`; retain its ID and `current_version` |
+| `output.failed` | `document_id`, `failure_code` | Stop showing that document as generating and handle the failure |
+| `generation.failed` | `job_id`, `failure_code` | Handle a failed or cancelled job; do not treat its unfinished documents as ready |
+
+A consult-note request can contain several templates. Events can interleave, so
+maintain separate text and completion state for every `document_id`. Wait for an
+`output.ready` for every requested document before treating the whole request as
+successful. A closed connection alone does not establish success.
+
+`output.ready` contains the persisted result, including `content` and
+`current_version`. You can immediately display it for clinician review or
+[save versioned edits](/documents#save-an-edit). A separate GET is useful when
+reopening the encounter, but is not required to obtain the initial result.
+
+If the request reuses completed output, the stream may return `output.ready`
+immediately without any deltas. In that case `job_ids` may be empty.
+
+## Parse events in your application
+
+Use a streaming HTTP client that supports POST, JSON bodies, and authorization
+headers, such as a `fetch` response reader with an SSE parser. The browser's
+native `EventSource` constructor cannot make these authenticated POST requests.
+
+Read complete SSE frames separated by blank lines. Parse each frame's `data` as
+JSON and dispatch on its `event` field. A network chunk can contain half a frame
+or several frames; do not call `JSON.parse` on each raw network chunk. Preserve
+UTF-8 characters across chunk boundaries and ignore heartbeat comments beginning
+with `:`. Keep the latest event `id` after you apply that event.
+
+## Reconnect after a disconnect
+
+Generation continues in the background when the connection closes. To observe
+the same work again:
+
+1. Send the same POST URL, body, grant, and `Idempotency-Key`.
+2. If you retained the applied partial text and its event cursor, send the cursor
+   in `Last-Event-ID` to resume after it.
+3. If you lost that local state, omit `Last-Event-ID` and rebuild from the replay.
+4. Accept an immediate `output.ready` if the document completed while disconnected.
+
+Keep a valid Partner JWT on reconnect; renew an expired JWT for the same grant.
+Do not create a new idempotency key just because the connection dropped.
+
+```bash
+curl --no-buffer --fail-with-body --request POST \
+  "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/consult-note" \
+  --header "Authorization: Bearer $CORTEXA_JWT" \
+  --header 'Content-Type: application/json' \
+  --header 'Accept: text/event-stream' \
+  --header 'Idempotency-Key: visit-001-note-1' \
+  --header "Last-Event-ID: $CORTEXA_LAST_EVENT_ID" \
+  --data '{"output_language_code":"en"}'
+```
+
+## Distinguish request errors from generation failures
+
+Before the stream starts, authentication, validation, permissions, and other
+request errors use the normal HTTP status and [JSON error body](/errors).
+Check the status and content type before parsing SSE.
+
+After `200` headers have been sent, a generation failure is reported through
+`output.failed` or `generation.failed`. Inspect `failure_code`; partial text is
+not a completed clinical document. A network error or EOF without the expected
+completion events calls for reconnecting or retrieving the document's status.
+
+Replaying a failed operation does not start a fresh attempt. Resolve the failure
+and use a new operation key when intentionally requesting new generation.
+
+## Use a background job instead
+
+For a backend workflow that does not need live text, add `?stream=false` to either
+generation endpoint. This returns the `202 application/json` receipt:
+
+```bash
+curl --fail-with-body --request POST \
+  "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/consult-note?stream=false" \
+  --header "Authorization: Bearer $CORTEXA_JWT" \
+  --header 'Content-Type: application/json' \
+  --header 'Idempotency-Key: visit-002-note-1' \
+  --data '{}'
+```
+
+Poll the returned jobs and retrieve their documents as described in [Jobs](/jobs).
+Existing integrations that parse these generation responses as JSON must set
+`stream=false`. An `Accept: application/json` header alone does not select JSON mode.
+
+Custom-template responses, Ask AI, transcription, and coding retain their own
+processing flows. The `stream` option applies only to the two endpoints above.

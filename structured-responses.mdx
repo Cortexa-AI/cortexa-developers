@@ -1,0 +1,98 @@
+---
+title: "Generate a structured clinical form"
+description: "Extract typed answers, repeating entries, and nested questions from a saved consult note."
+---
+
+Use structured responses when your integration needs named questions and validated
+answers. Start with a completed [consult note](/notes). This endpoint reads that
+saved note version and returns a JSON form synchronously. It requires
+`scribe:generate` and the clinician's document-generation permissions and quotas.
+
+## Ask the questions
+
+```bash
+curl --request POST "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/structured-responses" \
+  --header "Authorization: Bearer $CORTEXA_JWT" \
+  --header 'Idempotency-Key: synthetic-visit-001-form-1' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "summaryRequired":true,
+    "questions":[
+      {"questionId":"status","question":"What symptom status is documented?",
+       "answerType":"SingleResponse","answerOptions":[{"value":"improved"},{"value":"unchanged"},{"value":"worse"}]},
+      {"questionId":"follow_up","question":"What follow-up is documented?","answerType":"TextArea"}
+    ]
+  }'
+```
+
+The response includes an `id`, source `document_id` and `document_version`,
+`questionAnswers`, optional `content`, and optional `summary`.
+
+```json
+{
+  "id":"form_example",
+  "document_id":"note_example",
+  "document_version":2,
+  "content":null,
+  "questionAnswers":[
+    {"questionId":"follow_up","question":"What follow-up is documented?",
+     "description":"","answerType":"TextArea","answerOptions":[],
+     "dateFormat":"YYYY/MM/DD","repeatable":false,"childQuestions":[],
+     "answer":[{"value":"Review in two weeks."}]}
+  ],
+  "summary":"Synthetic follow-up consultation."
+}
+```
+
+This response fragment shows one answered question. The API returns all supplied
+non-repeating questions, including those with unknown answers.
+
+## Define the form
+
+| Field | Behavior |
+| --- | --- |
+| `template` | Optional instructions for additional free text in `content`; at most 20,000 characters |
+| `questions` | Required question definitions; at most 100 questions across the whole tree |
+| `summaryRequired` | Return a concise summary when true; otherwise `summary` is null |
+| `metadata` | Optional form context labels; does not define arbitrary output fields |
+
+Each question requires a globally unique `questionId`, a `question`, and an
+`answerType`. Optional `description` explains what to extract.
+
+| Answer type | Definition | Returned answer |
+| --- | --- | --- |
+| `TextArea` | Free-text question | One text value, or null when unknown |
+| `SingleResponse` | Nonempty `answerOptions` containing unique `value` strings | One allowed value, or null |
+| `MultipleResponse` | The same option format | Multiple allowed values; null when unknown |
+| `DateResponse` | Optional `dateFormat` | A validated date formatted as requested, or null |
+
+`dateFormat` accepts `D MMM YYYY`, `DD/MM/YYYY`, `MM/DD/YYYY`, `MMMM DD YYYY`,
+`MMM DD YYYY`, and `YYYY/MM/DD` (default). Option metadata is preserved with the
+option definitions. The model cannot return values outside a question's option list.
+
+## Repeat and nest questions
+
+Set `repeatable: true` to extract multiple documented occurrences. Each occurrence
+is returned as a separate answered-question entry with the same `questionId`, its
+own answer, and its own `childQuestions`. No documented occurrence produces an
+empty list for that repeating question. A response supports up to 50 occurrences
+per repeating question and up to five question levels.
+
+Use `childQuestions` for details that belong to each occurrence, such as a
+medication name with its dose and frequency. Missing details remain null;
+a missing fact must not be inferred from an unrelated visit.
+
+## Retrieve, retry, and review
+
+`GET /sessions/{session_id}/structured-responses/{result_id}` returns the persisted
+result. It remains tied to the saved source version even if that note is later edited.
+Deleting the source note or session removes access to the result.
+
+Reuse the same idempotency key and body after a lost response. Replays do not
+charge another advanced-template use. An edited source note changes the request's
+source version; use a new key to generate a new form. A missing completed note
+returns `409 CONSULT_NOTE_REQUIRED`; invalid definitions return `422`.
+
+This is a defined clinical question schema, not support for arbitrary JSON Schema.
+For free-text instructions without a question schema, use [custom prompts](/custom-templates).
+Present the extracted answers for clinician review before using them in another system.

@@ -36,7 +36,7 @@ preview before merging. Avoid pushing documentation changes directly to `main`.
 | `transcripts.mdx`, `recordings.mdx`, `segmented-transcription.mdx` | Text, signed recording uploads, and indexed audio chunks |
 | `templates.mdx`, `notes.mdx`, `documents.mdx`, `custom-templates.mdx` | Template selection, generation, and versioned edits |
 | `ask-ai.mdx`, `clinical-coding.mdx` | Session questions, code suggestions, and E/M |
-| `jobs.mdx`, `workspace-directory.mdx`, `workflows.mdx` | Async results, workspace access, and integration recipes |
+| `streaming.mdx`, `jobs.mdx`, `workspace-directory.mdx`, `workflows.mdx` | Streamed text, async results, workspace access, and integration recipes |
 | `capabilities.mdx`, `production.mdx`, `faq.mdx` | Public capability boundaries and production preparation |
 | `errors.mdx`, `downloads.mdx` | Recovery, limits, pagination, OpenAPI, and Postman |
 | `openapi.json` | Generated partner contract for the API reference |

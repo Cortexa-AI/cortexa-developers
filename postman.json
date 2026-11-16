@@ -32,6 +32,34 @@
       "value": ""
     },
     {
+      "key": "connector_id",
+      "value": ""
+    },
+    {
+      "key": "connector_token",
+      "value": ""
+    },
+    {
+      "key": "call_id",
+      "value": ""
+    },
+    {
+      "key": "result_id",
+      "value": ""
+    },
+    {
+      "key": "source_session_id",
+      "value": ""
+    },
+    {
+      "key": "oauth_state",
+      "value": ""
+    },
+    {
+      "key": "oauth_code",
+      "value": ""
+    },
+    {
       "key": "authorization_code",
       "value": ""
     },
@@ -608,6 +636,10 @@
           {
             "key": "Content-Type",
             "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "text/event-stream"
           }
         ],
         "body": {
@@ -627,9 +659,11 @@
             "type": "text/javascript",
             "exec": [
               "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));",
-              "if (pm.response.code < 300) { const data = pm.response.json();",
-              "if (data.job_id) pm.collectionVariables.set(\"job_id\", data.job_id);",
-              "pm.collectionVariables.set(\"document_id\", data.document_ids[0]);",
+              "for (const frame of pm.response.text().split(/\\r?\\n\\r?\\n/)) {",
+              "  const line = frame.split(/\\r?\\n/).find(line => line.startsWith(\"data: \"));",
+              "  if (!line) continue; const data = JSON.parse(line.slice(6));",
+              "  if (data.document_ids?.[0]) pm.collectionVariables.set(\"document_id\", data.document_ids[0]);",
+              "  if (data.job_ids?.[0]) pm.collectionVariables.set(\"job_id\", data.job_ids[0]);",
               "}"
             ]
           }
@@ -819,6 +853,587 @@
       ]
     },
     {
+      "name": "Workflow",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/v2/scribe/open-api/workflows/session",
+        "header": [
+          {
+            "key": "Idempotency-Key",
+            "value": "{{idempotency_key}}-scribe_api_session_workflow"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"patient\": {\n    \"external_patient_id\": \"ehr-patient-001\",\n    \"name\": \"Synthetic Patient\"\n  },\n  \"session\": {\n    \"external_session_id\": \"ehr-visit-001\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));",
+              "if (pm.response.code < 300) { const data = pm.response.json();",
+              "if (data.patient.id) pm.collectionVariables.set(\"patient_id\", data.patient.id);",
+              "if (data.session.id) pm.collectionVariables.set(\"session_id\", data.session.id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Set Context",
+      "request": {
+        "method": "PUT",
+        "url": "{{base_url}}/v2/scribe/open-api/sessions/{{session_id}}/context/sessions",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"session_ids\": [\n    \"{{source_session_id}}\"\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get Context",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/v2/scribe/open-api/sessions/{{session_id}}/context/sessions",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Set Mappings",
+      "request": {
+        "method": "PUT",
+        "url": "{{base_url}}/v2/scribe/open-api/templates/{{template_id}}/section-mappings",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"section_mappings\": [\n    {\n      \"section_heading\": \"Plan\",\n      \"linked_ehr_section_id\": \"plan\"\n    }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get Mappings",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/v2/scribe/open-api/templates/{{template_id}}/section-mappings",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Note Sections",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/v2/scribe/open-api/sessions/{{session_id}}/consult-note/sectional-note-conversion",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Link Section",
+      "request": {
+        "method": "PATCH",
+        "url": "{{base_url}}/v2/scribe/open-api/sessions/{{session_id}}/consult-note/link-section",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"base_version\": 1,\n  \"section_heading\": \"Plan\",\n  \"linked_ehr_section_id\": \"plan\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Structured Response",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/v2/scribe/open-api/sessions/{{session_id}}/structured-responses",
+        "header": [
+          {
+            "key": "Idempotency-Key",
+            "value": "{{idempotency_key}}-scribe_api_structured_response_create"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"questions\": [\n    {\n      \"questionId\": \"plan\",\n      \"question\": \"What follow-up was documented?\",\n      \"answerType\": \"TextArea\"\n    }\n  ],\n  \"summaryRequired\": true\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));",
+              "if (pm.response.code < 300) { const data = pm.response.json();",
+              "if (data.id) pm.collectionVariables.set(\"result_id\", data.id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get Structured Response",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/v2/scribe/open-api/sessions/{{session_id}}/structured-responses/{{result_id}}",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Query Usage",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/v2/scribe/open-api/usage/query",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"user_daily_report\",\n  \"limit\": 100\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Register",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/v2/scribe/open-api/connectors",
+        "header": [
+          {
+            "key": "Cortexa-Api-Key",
+            "value": "{{api_key}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Synthetic EHR\",\n  \"description\": \"Read synthetic patient records\",\n  \"transport\": \"rest\",\n  \"endpoint\": \"https://ehr.example\",\n  \"tools\": [\n    {\n      \"name\": \"get_patient\",\n      \"description\": \"Read a patient\",\n      \"input_schema\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"patient_id\": {\n            \"type\": \"string\"\n          }\n        },\n        \"required\": [\n          \"patient_id\"\n        ]\n      },\n      \"write\": false,\n      \"method\": \"GET\",\n      \"path\": \"/patient\"\n    }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));",
+              "if (pm.response.code < 300) { const data = pm.response.json();",
+              "if (data.id) pm.collectionVariables.set(\"connector_id\", data.id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Listing",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/v2/scribe/open-api/connectors",
+        "header": [
+          {
+            "key": "Cortexa-Api-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Update",
+      "request": {
+        "method": "PUT",
+        "url": "{{base_url}}/v2/scribe/open-api/connectors/{{connector_id}}",
+        "header": [
+          {
+            "key": "Cortexa-Api-Key",
+            "value": "{{api_key}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Synthetic EHR\",\n  \"description\": \"Read synthetic patient records\",\n  \"transport\": \"rest\",\n  \"endpoint\": \"https://ehr.example\",\n  \"tools\": [\n    {\n      \"name\": \"get_patient\",\n      \"description\": \"Read a patient\",\n      \"input_schema\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"patient_id\": {\n            \"type\": \"string\"\n          }\n        },\n        \"required\": [\n          \"patient_id\"\n        ]\n      },\n      \"write\": false,\n      \"method\": \"GET\",\n      \"path\": \"/patient\"\n    }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Connect",
+      "request": {
+        "method": "PUT",
+        "url": "{{base_url}}/v2/scribe/open-api/connectors/{{connector_id}}/connection",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"token\": \"{{connector_token}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Disconnect",
+      "request": {
+        "method": "DELETE",
+        "url": "{{base_url}}/v2/scribe/open-api/connectors/{{connector_id}}/connection",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tools",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/v2/scribe/open-api/connectors/tools",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Oauth Authorize",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/v2/scribe/open-api/connectors/{{connector_id}}/oauth/authorize",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Oauth Complete",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/v2/scribe/open-api/connectors/{{connector_id}}/oauth/complete",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"state\": \"{{oauth_state}}\",\n  \"code\": \"{{oauth_code}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Call",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/v2/scribe/open-api/connectors/{{connector_id}}/calls",
+        "header": [
+          {
+            "key": "Idempotency-Key",
+            "value": "{{idempotency_key}}-scribe_api_connector_call"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"tool_name\": \"get_patient\",\n  \"arguments\": {\n    \"patient_id\": \"synthetic-patient\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));",
+              "if (pm.response.code < 300) { const data = pm.response.json();",
+              "if (data.call_id) pm.collectionVariables.set(\"call_id\", data.call_id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Call Receipt",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/v2/scribe/open-api/connector-calls/{{call_id}}",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "Generate Document",
       "request": {
         "method": "POST",
@@ -831,6 +1446,10 @@
           {
             "key": "Content-Type",
             "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "text/event-stream"
           }
         ],
         "body": {
@@ -850,8 +1469,11 @@
             "type": "text/javascript",
             "exec": [
               "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));",
-              "if (pm.response.code < 300) { const data = pm.response.json();",
-              "if (data.job_id) pm.collectionVariables.set(\"job_id\", data.job_id);",
+              "for (const frame of pm.response.text().split(/\\r?\\n\\r?\\n/)) {",
+              "  const line = frame.split(/\\r?\\n/).find(line => line.startsWith(\"data: \"));",
+              "  if (!line) continue; const data = JSON.parse(line.slice(6));",
+              "  if (data.document_ids?.[0]) pm.collectionVariables.set(\"document_id\", data.document_ids[0]);",
+              "  if (data.job_ids?.[0]) pm.collectionVariables.set(\"job_id\", data.job_ids[0]);",
               "}"
             ]
           }

@@ -36,17 +36,22 @@ document's `id`, `current_version: 1`, empty `rendered_text`, and empty `content
 Save the returned ID as `CORTEXA_DOCUMENT_ID`, then request content:
 
 ```bash
-curl --request POST "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/documents/$CORTEXA_DOCUMENT_ID/content" \
+curl --no-buffer --request POST "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/documents/$CORTEXA_DOCUMENT_ID/content" \
   --header "Authorization: Bearer $CORTEXA_JWT" \
   --header 'Content-Type: application/json' \
   --header 'Idempotency-Key: visit-001-letter-generate-1' \
   --data '{"output_language_code":"en"}'
 ```
 
-You can send `{}` to use the applicable language setting. The `202` receipt
-contains `job_id`, `status`, and `document_id`. [Poll the job](/jobs), then fetch
-the document. Use this endpoint with a new key when the clinician requests fresh
-content after a change to the session.
+You can send `{}` to use the applicable language setting. The default response
+is `200 text/event-stream`: append `output.delta` text for this document, then
+replace it with the saved document from `output.ready`. See [Streaming](/streaming)
+for event handling and reconnecting without duplicate work.
+
+For background generation, add `?stream=false`. The `202` JSON receipt contains
+`job_id`, `status`, and `document_id`; [poll the job](/jobs), then fetch the document.
+Use a new key when the clinician intentionally requests fresh content after a
+change to the session.
 
 ## Read a document or list the session's documents
 
