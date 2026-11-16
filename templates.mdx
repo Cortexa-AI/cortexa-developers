@@ -1,0 +1,74 @@
+---
+title: "Choose a template"
+description: "Find the clinician's available templates and select the output you want to generate."
+sidebarTitle: "Templates"
+---
+
+A template guides the structure and purpose of a generated note or document.
+Use a Partner JWT with `scribe:read` to discover templates visible to the
+authorized clinician and workspace.
+
+## List available templates
+
+| Method and path | Returns |
+| --- | --- |
+| `GET /templates` | Available templates across categories |
+| `GET /templates/consult-note-templates` | Consultation-note templates |
+| `GET /templates/document-templates` | Document templates, such as letters |
+| `GET /templates/{template_id}` | One template, including its category, version, and structure |
+
+```bash
+curl "$CORTEXA_API_BASE/templates/consult-note-templates?page=1&per_page=20" \
+  --header "Authorization: Bearer $CORTEXA_JWT"
+```
+
+Example list response:
+
+```json
+{
+  "items": [{"id":"template_example","name":"Synthetic SOAP","description":"A template for a synthetic consultation."}],
+  "page": 1,
+  "per_page": 20,
+  "total": 1,
+  "has_next": false
+}
+```
+
+The ID and name above are illustrative. Choose from your actual response and save
+the selected ID as `CORTEXA_TEMPLATE_ID`. Follow `has_next` for additional pages.
+
+## Inspect a template
+
+```bash
+curl "$CORTEXA_API_BASE/templates/$CORTEXA_TEMPLATE_ID" \
+  --header "Authorization: Bearer $CORTEXA_JWT"
+```
+
+The response contains `id`, `name`, `description`, `category`, `current_version`,
+and `structure`. Template structure is an object; its contents depend on the
+template. Do not assume all templates have identical fields.
+
+## Use the selection
+
+| Task | Where to pass the template |
+| --- | --- |
+| Generate consult notes | `template_ids` array on `POST /sessions/{session_id}/consult-note` |
+| Associate templates when creating a session | `template_ids` array on `POST /sessions` |
+| Create a document | `template_id` on `POST /sessions/{session_id}/documents` |
+| Generate from a new custom prompt | [Custom template response](/custom-templates) |
+
+For a predictable first integration, choose an explicit template returned by the
+API. Access and generation entitlements still apply when requesting output.
+
+## Template management and field mapping
+
+The public API exposes template listing and retrieval. It does not expose general
+template update/delete endpoints or a stored mapping from template headings to
+your EHR's field IDs. Your integration maps the returned document content to the
+fields in your own system.
+
+The custom template response endpoint creates a private template from a prompt
+and queues its output. Its request is described in
+[Custom template responses](/custom-templates).
+
+Continue with [consult notes](/notes) or [additional documents](/documents).

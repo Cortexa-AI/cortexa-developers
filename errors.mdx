@@ -1,35 +1,112 @@
 ---
-title: Errors, limits and retries
-description: Handle authentication, resource access and asynchronous work consistently.
+title: "Errors, limits, and retries"
+description: "Diagnose failed requests, avoid duplicate work, and handle pagination and request limits."
 ---
 
-Responses use the Cortexa v2 resource format: successful resources are returned
-directly. Errors contain `message` and an `errors` array with machine-readable
-`code` values. Save the `X-Cortexa-Request-Id` response header when requesting support.
+Successful responses return the resource or receipt directly. Errors contain a
+human-readable `message` and an `errors` array of machine-readable codes.
 
-| HTTP status | Meaning | Action |
+## Read an error
+
+Example authentication error:
+
+```json
+{
+  "message": "Access token is invalid or expired",
+  "errors": [{"code":"INVALID_ACCESS_TOKEN"}]
+}
+```
+
+Treat the code as the stable diagnostic and the message as an explanation. Save
+`X-Cortexa-Request-Id` from response headers when contacting support.
+
+| HTTP status | Typical cause | Next action |
 | --- | --- | --- |
-| 400 | Invalid application, callback, or request | Fix the request |
-| 401 | Invalid key, expired token, or revoked grant | Renew the token or authorize again |
-| 403 | Missing scope or lost workspace permission | Check the granted permissions |
-| 404 | Resource unavailable to this grant | Check the returned resource ID and grant |
-| 409 | Conflicting identity or reused idempotency key with changed contents | Correct the identity or request |
-| 422 | Invalid body or unmet clinical workflow requirement | Inspect the error code |
-| 429 | Application request limit reached | Honor `Retry-After` |
-| 503 | API configuration or request accounting unavailable | Retry later with backoff |
+| 400 | Invalid application or callback | Correct the authorization request |
+| 401 | Invalid API key, JWT, or grant | Check credential type/environment; renew the JWT or obtain authorization again |
+| 403 | Missing scope, entitlement, or workspace access | Check application/grant scopes and clinician permissions |
+| 404 | Resource not available to this grant | Check the returned ID, grant mapping, and deletion status |
+| 409 | Version conflict, inconsistent replay, identity/link conflict, or missing prerequisite | Read the error code and resolve the specific conflict |
+| 413 | Audio or context file too large | Reduce the chunk/request size |
+| 422 | Invalid fields or a workflow requirement | Inspect field details and correct the request |
+| 429 | Application request allowance reached | Honor the `Retry-After` header |
+| 502 | Audio, storage, or another upstream operation failed | Resolve the upstream failure and retry the same operation as appropriate |
+| 503 | API configuration, accounting, or a required dependency unavailable | Retry later with backoff; contact Cortexa if persistent |
 
-Limits are shared by all grants under an application. The default limit is 120
-authenticated requests per minute, including token exchange. Cortexa can assign a
-different limit. Existing plan and generation quotas apply in addition to request limits.
+Unknown fields are rejected by the partner request models. Use the API reference
+for the exact request schema rather than sending an internal product payload.
 
-Transcript submission, upload creation/completion and note generation require
-`Idempotency-Key`. Keep it stable across retries of the same operation; use a new
-key for a new operation. Keys are scoped to the grant and operation and retained for seven days.
+## Diagnose common codes
 
-List endpoints accept `page` and `per_page` (1–100) and return `items`, `page`,
-`per_page`, `total` and `has_next`. Job polling returns status, not note contents;
-retrieve documents after the job succeeds.
+| Code or situation | Explanation |
+| --- | --- |
+| `INVALID_API_KEY` | `/jwt` did not receive valid application credentials |
+| `INVALID_ACCESS_TOKEN` | A valid Partner JWT is required for the clinical request |
+| `INVALID_GRANT` | The grant is unavailable, revoked, or belongs to another application |
+| `INSUFFICIENT_SCOPE` | The token lacks the operation's required scope |
+| `RESOURCE_NOT_FOUND` | The resource is absent, deleted, or outside this grant |
+| `TRANSCRIPT_NOT_FOUND` | A session transcript is not available yet |
+| `CONSULT_NOTE_REQUIRED` | Complete a consult note before editing the latest note or requesting E/M |
+| `SEGMENT_CONFLICT` | An audio index was reused with different bytes or duration |
+| `RECORDING_FINISHED` | New chunks cannot be added to a finished recording |
+| `PATIENT_LINK_MISMATCH` | The session is not linked to the patient in the unlink request |
+| `409` while editing a document | Fetch the current document and resolve its version conflict |
 
-Requests are audited using application, grant, operation and user/workspace IDs.
-Do not put patient information in idempotency keys or persist API keys, JWTs,
-audio or clinical request/response bodies in integration logs.
+A failed background job can follow a successful `202` response. Inspect
+`failure_code` on the job or workflow result; HTTP acceptance does not establish
+that transcription or generation succeeded.
+
+## Request limits
+
+The default application allowance is 120 authenticated requests per minute.
+Cortexa can assign a different limit. All grants under an application share the
+allowance, including token exchange and polling. On `429`, wait for `Retry-After`
+and reduce request frequency.
+
+Plan entitlements and generation quotas are separate from request-rate limits.
+A valid token and available rate allowance do not grant additional clinical access.
+
+## Retry without creating duplicate work
+
+| Operation | Replay identifier |
+| --- | --- |
+| Create patient/session | Stable external ID within the grant |
+| Append transcript, create/complete upload, start segmented recording | `Idempotency-Key` |
+| Generate note, create document, generate content/custom response, Ask AI, explicit coding run, context upload | `Idempotency-Key` |
+| Upload an audio segment | Recording ID + index, with identical bytes and duration |
+| Finish segmented recording | Same recording ID |
+| Edit document | Current `base_version`; resolve conflicts before retrying changed text |
+
+For requests with `Idempotency-Key`, keep the same key and unchanged body when
+recovering a lost response. Use a new key for a new operation. Keys are scoped to
+the grant and operation and retained for seven days. Do not reuse a key with a
+changed payload or start duplicate generation just because polling is slow.
+
+After a job has failed, replaying its original request does not create new work.
+Resolve the failure and use the appropriate workflow to start a new operation.
+See [Jobs](/jobs).
+
+## Pagination
+
+Most list endpoints accept `page` (starting at 1) and `per_page` (1–100).
+They return this shape:
+
+```json
+{
+  "items": [],
+  "page": 1,
+  "per_page": 20,
+  "total": 0,
+  "has_next": false
+}
+```
+
+Increment `page` while `has_next` is true. The workspace list `GET /teams` is an
+array rather than a paginated object. See [Workspace directory](/workspace-directory).
+
+## Support diagnostics
+
+Include the operation, HTTP status, error/failure code, and
+`X-Cortexa-Request-Id` when asking your Cortexa integration contact for help.
+Do not put clinical information in idempotency keys or ordinary request logs.
+Keep API keys, JWTs, signed URLs, audio, and clinical payloads out of shared diagnostics.

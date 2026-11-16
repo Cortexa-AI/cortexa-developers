@@ -1,0 +1,100 @@
+---
+title: "Generate a consult note"
+description: "Request a clinical draft, wait for generation, and save the clinician's edits."
+sidebarTitle: "Consult notes"
+---
+
+Generate a consult note after preparing a session's transcript and relevant
+context. Your application displays the draft for clinician review.
+
+You need `scribe:generate` to request output, `scribe:read` to poll and retrieve it,
+and `scribe:write` to save edits. Clinical permissions, template access, and
+generation entitlements also apply.
+
+## Request generation
+
+`POST /sessions/{session_id}/consult-note`
+
+```bash
+curl --request POST "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/consult-note" \
+  --header "Authorization: Bearer $CORTEXA_JWT" \
+  --header 'Content-Type: application/json' \
+  --header 'Idempotency-Key: visit-001-note-1' \
+  --data "{\"template_ids\":[\"$CORTEXA_TEMPLATE_ID\"],\"output_language_code\":\"en\"}"
+```
+
+| Field | Required | Meaning |
+| --- | --- | --- |
+| `template_ids` | No | Up to 20 template IDs; select from [available templates](/templates) |
+| `output_language_code` | No | Language requested for this generation |
+
+Selecting a template explicitly makes the expected output clear. Omitting the
+selection uses the session's applicable template selection/default behavior.
+
+Example `202` response:
+
+```json
+{
+  "job_id": "job_example",
+  "job_ids": ["job_example"],
+  "status": "queued",
+  "document_ids": ["document_example"]
+}
+```
+
+Save the actual returned IDs. Generation is asynchronous: the receipt contains
+references to the work and its output, not a stream of note text.
+
+## Wait for the result
+
+Poll `GET /jobs/{job_id}` for every returned job. When a job succeeds, retrieve
+its document using `GET /sessions/{session_id}/documents/{document_id}`.
+If multiple templates produced multiple outputs, process all the returned IDs.
+
+A repeated or reusable generation may return `status: "succeeded"`, a null
+`job_id`, and no new jobs. Retrieve the returned documents directly in that case.
+See [Jobs](/jobs) for polling and failure handling.
+
+Example completed document:
+
+```json
+{
+  "id": "document_example",
+  "session_id": "session_example",
+  "status": "ready",
+  "title": "Synthetic consultation note",
+  "rendered_text": "Synthetic draft: the patient reports improved sleep.",
+  "content": {},
+  "generation_job_id": "job_example",
+  "failure_code": null,
+  "current_version": 1
+}
+```
+
+The generated wording and `content` structure depend on the template and clinical
+inputs. `rendered_text` is the display text; do not assume a fixed schema for
+`content` across templates.
+
+## Save clinician edits
+
+To edit a particular document, use its ID. To edit the latest completed consult
+note generated through the consult-note endpoint, use:
+
+```bash
+curl --request PATCH "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/consult-note" \
+  --header "Authorization: Bearer $CORTEXA_JWT" \
+  --header 'Content-Type: application/json' \
+  --data '{"base_version":1,"rendered_text":"Clinician-reviewed synthetic note."}'
+```
+
+Replace `base_version` with the current value from the document you read.
+A stale version returns `409`; retrieve the latest document and resolve the
+edits before saving again. If no completed consult note is available, this
+endpoint returns `409 CONSULT_NOTE_REQUIRED`.
+
+## Write the result to your EHR
+
+After review, use your own EHR API to save the result to the mapped encounter.
+Cortexa's document PATCH stores the edit in Cortexa; it does not push the text to
+an external EHR. See [Documents](/documents) for document-specific edits and
+[workflow recipes](/workflows) for a complete review-and-save sequence.

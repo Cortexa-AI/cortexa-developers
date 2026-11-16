@@ -1,74 +1,71 @@
 ---
 title: "API capabilities"
-description: "Explore the Scribe API workflows and their integration requirements."
+description: "See what the public Scribe API supports and which parts your integration provides."
 ---
 
-The API reference contains 48 operations under `/v2/scribe/open-api`. Use the
-**API reference** tab for request fields, responses, and authentication requirements.
+The current public contract contains **48 operations** under
+`/v2/scribe/open-api`. The API reference tab lists each operation's request and
+response schemas. These guides explain how to combine them into a clinical workflow.
 
 ## Supported workflows
 
-| Area | Capabilities |
+| Area | Available operations | Guide |
+| --- | --- | --- |
+| Authentication | Exchange a clinician authorization code or valid grant for a JWT; retrieve public keys | [Authentication](/authentication) |
+| Patients | Create, list, retrieve, update, delete, batch delete, and link/unlink sessions | [Patients](/patients) |
+| Sessions | Create, list, retrieve, update, and delete consultations | [Sessions](/sessions) |
+| Clinical context | Session background text; upload, list, and detach context documents | [Context](/context) |
+| Transcript text | Append ordered batches and retrieve the combined transcript | [Transcripts](/transcripts) |
+| Complete audio | Create an upload, obtain signed part URLs, complete, and process the recording | [Recordings](/recordings) |
+| Audio during a consultation | Start a recording, transcribe indexed chunks, and finish the assembled transcript | [Segmented transcription](/segmented-transcription) |
+| Templates | List all or category-specific templates; retrieve detail | [Templates](/templates) |
+| Consult notes | Queue generation and edit the latest completed note | [Notes](/notes) |
+| Documents | Create, list, retrieve, edit, delete, and generate/regenerate content | [Documents](/documents) |
+| Custom prompts | Create a private prompt-based template and generate a document | [Custom templates](/custom-templates) |
+| Ask AI | Submit a session question and retrieve the answer | [Ask AI](/ask-ai) |
+| Coding | Start/retrieve code suggestions; request US outpatient MDM-based E/M assessment | [Clinical coding](/clinical-coding) |
+| Jobs | Retrieve processing status and failure codes | [Jobs](/jobs) |
+| Workspace directory | Read the authorized workspace and its active members | [Directory](/workspace-directory) |
+
+## Integration model
+
+The API is designed for backend integration. Your application handles clinician
+consent coordination, audio capture, the review UI, and saving results in your EHR.
+A grant binds your application to one clinician and workspace, and isolates its
+patients and sessions. See [the complete flow](/integration-flow).
+
+| Integration need | Current approach |
 | --- | --- |
-| Authentication | Exchange an authorization code or existing grant for a JWT; retrieve public signing keys |
-| Patients | Create, list, read, update, and delete patients; batch delete; link and unlink sessions |
-| Sessions | Create, list, read, update, and delete consultation sessions |
-| Transcripts and recordings | Append transcript segments; read transcripts; upload complete recordings in parts; transcribe and finish audio segments |
-| Templates | List available templates by category and retrieve an individual template |
-| Notes and documents | Generate and edit consult notes; create, retrieve, edit, and delete documents; generate document content and custom template responses |
-| Ask AI | Submit a question about a session and retrieve the resulting answer |
-| Clinical coding | Request and retrieve clinical code suggestions; assess E/M level |
-| Context documents | Upload, list, and remove session attachments |
-| Jobs | Poll asynchronous work for completion or failure |
-| Workspace directory | Retrieve the authorized workspace and its active members |
+| Sign in and authorize | Cortexa clinician login plus the consent flow agreed during onboarding |
+| Call clinical endpoints | Partner JWT from the API-key/token exchange |
+| Know when processing finishes | Poll job or workflow-result endpoints |
+| Update clinical text | Versioned document edits using `base_version` |
+| Map output into EHR fields | Your integration maps returned content to your own fields |
+| Retrieve patient history | Submit the relevant authorized context explicitly |
+| Configure regional hosting and supported languages | Confirm with Cortexa for your environment |
 
-## Authorization and scope
+## Public API boundaries
 
-Each grant is tied to one clinician and workspace. Patient and session access is
-scoped to that grant. The directory uses the authorized workspace ID for both
-team and organization identifiers; it does not provide cross-workspace access.
+The current contract does not expose an embedded widget/client SDK, a general
+third-party REST/MCP connector registration program, completion webhooks, a
+partner usage-analytics API, or vendor-specific FHIR/HL7 adapters.
 
-Read, write, and generation permissions are separate. See
-[Authentication](/authentication) for scopes. Existing clinical permissions, plan
-entitlements, and generation quotas also apply.
+It also does not expose a combined patient-and-session setup call, a sectional-note
+conversion API with stored EHR-field mappings, a previous-session context-linking
+endpoint, or PDF/DOCX document downloads. Internal product functionality does not
+automatically make these operations available to partner JWTs.
 
-## Asynchronous work
+Custom template generation accepts a name and prompt; it does not accept an
+arbitrary output JSON schema. Audio during a consultation uses HTTP chunks rather
+than a public WebSocket connection. Note generation returns jobs and documents
+rather than streaming generated text in the generation response.
 
-Note and document generation, Ask AI, and clinical coding use jobs. Poll the job
-or the workflow's result endpoint until it finishes. A successful job makes its
-result available through the relevant document or result endpoint.
+## Availability and permissions
 
-Clinical coding GET can start a run when no result exists and returns HTTP 202
-while pending. Both clinical coding GET and E/M GET require `scribe:generate` and
-return `Cache-Control: no-store`.
+An implemented operation still depends on application scopes, clinician workspace
+permissions, plan entitlements, quotas, and the configured provider. Coding systems
+and language support must be confirmed for the integration's environment.
 
-## Audio and attachments
-
-Segmented transcription accepts independently decodable chunks in any upload
-order. Each chunk needs a zero-based index and duration and must be at most six
-minutes and 50 MiB. Finishing requires consecutive indices and appends the ordered
-transcript once. See [Recordings](/recordings).
-
-Context uploads support PDF, DOCX, TXT, Markdown, JPEG, PNG, and WebP. Wait for
-extraction and indexing before generating a note. Removing an attachment changes
-future generation context; it leaves existing generated documents and the
-clinician's library copy intact.
-
-## Clinical coding and E/M
-
-Available code sets depend on the configured coding provider and the clinician's
-entitlements. E/M suggestions cover US office and outpatient MDM-based assessment
-for new or established patients. They include supporting evidence, the source
-document version, and an insufficient-documentation state.
-
-E/M assessment does not cover time-based billing or facility-specific levels.
-Clinicians must review coding and E/M suggestions before billing.
-
-## Integration scope
-
-The API provides backend-to-backend access. Your EHR supplies recording controls,
-coordinates consent with Cortexa, and saves reviewed results. Embedded widgets,
-webhooks, and vendor-specific FHIR/HL7 adapters are outside the current scope.
-
-Coordinate real audio, document generation, and EHR acceptance testing with your
-Cortexa integration contact before production use.
+The sandbox hostname exposes the public contract; it is not a clinician login
+site. Agree production access and acceptance with your integration contact using
+[Sandbox](/sandbox) and [production preparation](/production).

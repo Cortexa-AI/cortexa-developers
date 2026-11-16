@@ -1,64 +1,127 @@
 ---
-title: Submit a recording
-description: Upload complete recordings or transcribe audio segments as they arrive.
+title: "Upload a complete recording"
+description: "Upload audio to signed storage URLs, complete the recording, and retrieve its transcript."
+sidebarTitle: "Recording uploads"
 ---
 
-This workflow uses the same JWT and session as the text quickstart. It supports
-complete audio files and ordered multipart uploads.
+Use this workflow when you already have a complete consultation recording. For
+audio arriving during the consultation, use [segmented transcription](/segmented-transcription).
 
-## Create an upload
+You need an existing session, `scribe:write` for the upload workflow, and
+`scribe:read` to poll the transcription job and retrieve its result. Use a local
+synthetic audio file when testing.
 
-`POST /sessions/SESSION_ID/recording-uploads` with a unique `Idempotency-Key`:
+## Upload sequence
 
-```json
-{"file_name": "consultation.wav", "mime_type": "audio/wav", "size_bytes": 4096, "part_count": 1}
+```mermaid
+sequenceDiagram
+    participant E as Your backend
+    participant C as Cortexa API
+    participant S as Audio storage
+    E->>C: Create recording upload
+    C-->>E: Upload ID
+    E->>C: Request signed URL for part 1
+    C-->>E: Upload URL and required headers
+    E->>S: PUT audio bytes
+    S-->>E: ETag
+    E->>C: Complete upload with parts and duration
+    C-->>E: Transcription job ID
+    E->>C: Poll job, then read transcript
 ```
 
-The response's `id` is the upload ID, not a recording ID.
+## 1. Create an upload
 
-## Upload each part
+`POST /sessions/{session_id}/recording-uploads`
 
-Call `POST /recording-uploads/UPLOAD_ID/upload-urls` with `{"part_number": 1}`.
+```bash
+curl --request POST "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/recording-uploads" \
+  --header "Authorization: Bearer $CORTEXA_JWT" \
+  --header 'Content-Type: application/json' \
+  --header 'Idempotency-Key: visit-001-audio-upload-1' \
+  --data '{"file_name":"synthetic-consultation.wav","mime_type":"audio/wav","size_bytes":4096,"part_count":1}'
+```
+
+Replace the illustrative file size with the actual number of bytes in your file.
+
+| Field | Required | Meaning |
+| --- | --- | --- |
+| `file_name` | Yes | Original filename; 1–255 characters |
+| `mime_type` | No | Audio MIME type; defaults to `audio/wav` |
+| `size_bytes` | Yes | Total recording size in bytes, greater than zero |
+| `part_count` | No | Number of parts, from 1 to 10,000; defaults to 1 |
+
+The `201` response contains `id`, `session_id`, `status`, and `part_count`.
+Save `id` as `CORTEXA_UPLOAD_ID`. This is the **upload ID**, not the recording ID
+returned later on completion.
+
+## 2. Request a URL for a part
+
+```bash
+curl --request POST "$CORTEXA_API_BASE/recording-uploads/$CORTEXA_UPLOAD_ID/upload-urls" \
+  --header "Authorization: Bearer $CORTEXA_JWT" \
+  --header 'Content-Type: application/json' \
+  --data '{"part_number":1}'
+```
+
 The response contains `upload_url`, `expires_at`, and required `headers`.
-PUT the audio bytes to that URL with the returned headers. Preserve the storage
-response's ETag. Repeat for each consecutive part number when `part_count` exceeds 1.
+Parts are numbered from **1**, unlike zero-based segmented transcription indices.
+Signed URLs expire after 15 minutes; request another URL if necessary.
 
-Signed URLs expire after 15 minutes. Request a new URL when needed. Send the partner
-JWT only to Cortexa API endpoints; the upload URL carries its own authorization.
+## 3. Upload the bytes
 
-## Complete the upload
+Set `CORTEXA_UPLOAD_URL` to the returned URL. Send the returned headers; for the
+`audio/wav` example they contain `Content-Type: audio/wav`:
 
-`POST /recording-uploads/UPLOAD_ID/completion` with a unique `Idempotency-Key`:
-
-```json
-{"parts": [{"part_number": 1, "etag": "ETAG_FROM_UPLOAD"}], "duration_ms": 30000}
+```bash
+curl --fail-with-body --request PUT "$CORTEXA_UPLOAD_URL" \
+  --header 'Content-Type: audio/wav' \
+  --data-binary '@./synthetic-consultation.wav' \
+  --dump-header ./synthetic-upload-response.headers
 ```
 
-HTTP 202 returns the recording `id`, `status`, and `transcription_job_id`.
-Poll that job until it finishes, retrieve `/sessions/SESSION_ID/transcript`, then
-generate a consultation note as described in [Quickstart](/quickstart).
+Read the storage response's `ETag` from the saved headers and retain it for the
+completion request. The file with response headers is a temporary integration
+artifact; keep signed URLs and credentials out of shared logs.
 
-Repeat a failed network request with the same idempotency key and unchanged body.
-The API enforces the original grant's session ownership throughout the upload.
+Send the Partner JWT only to Cortexa API endpoints. The signed storage URL carries
+its own authorization, so do not add the Partner JWT to the storage PUT.
 
-## Transcribe during the consultation
+For multiple parts, request and upload each consecutive part, retaining every
+part's number and ETag.
 
-1. POST `/sessions/SESSION_ID/restful-segment-transcription` with an
-   `Idempotency-Key`. Save `recording_id` from the 201 response.
-2. POST `/sessions/SESSION_ID/restful-segment-transcription/RECORDING_ID:transcribe`
-   as multipart form data: `file` (audio), `index` (zero-based integer), and
-   `duration` (this chunk's duration in seconds, required). Each chunk must be at
-   most 360 seconds and 50 MiB. The response includes that chunk's `transcript`.
-3. Continue uploading independently decodable chunks. Indices may arrive out of
-   order. A duplicate index with the same bytes and duration returns its original
-   result; different content at an existing index returns 409.
-4. POST `/sessions/SESSION_ID/restful-segment-transcription/RECORDING_ID:finish`.
-   Indices must be consecutive from zero. The server sorts and offsets segments,
-   appends them to the session transcript, and returns the recording transcript.
-   Repeating finish returns the same result without appending text again.
+## 4. Complete the upload
 
-The chunk endpoint waits for transcription. On a provider/network failure, retry
-the same index with identical content. A finished recording accepts retries of
-existing chunks but rejects new indices. Create another recording to continue.
-The session transcript contains these chunks after finish; per-chunk responses
-can be displayed before then.
+`POST /recording-uploads/{upload_id}/completion`
+
+```bash
+curl --request POST "$CORTEXA_API_BASE/recording-uploads/$CORTEXA_UPLOAD_ID/completion" \
+  --header "Authorization: Bearer $CORTEXA_JWT" \
+  --header 'Content-Type: application/json' \
+  --header 'Idempotency-Key: visit-001-audio-complete-1' \
+  --data '{"parts":[{"part_number":1,"etag":"ETAG_FROM_STORAGE_RESPONSE"}],"duration_ms":30000}'
+```
+
+Replace the ETag and duration with the values for your recording. `duration_ms`
+is the **whole recording's duration in milliseconds**. Include every uploaded part.
+
+The `202` response contains the recording `id`, `status`, and a
+`transcription_job_id` when processing is scheduled.
+
+## 5. Retrieve the transcript and generate a note
+
+Poll the returned transcription job until it succeeds, then read
+`GET /sessions/{session_id}/transcript`. Submit the resulting session to
+[consult-note generation](/notes).
+
+The completion request starts the transcription workflow; you do not trigger
+transcription by repeatedly fetching the transcript. The API does not expose a
+single multipart `/upload-audio` endpoint for complete recordings.
+
+## Retry an interrupted upload
+
+Reuse the same idempotency key and body for a retried upload-creation or completion
+operation. If a signed URL expires, request a fresh URL for that part. Do not call
+completion until the part PUTs have succeeded and their ETags are available.
+
+Keep upload and recording IDs separate in your application. See [Errors](/errors)
+for request failures and [Jobs](/jobs) for transcription failures.

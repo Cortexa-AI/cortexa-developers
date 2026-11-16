@@ -1,0 +1,88 @@
+---
+title: "Add clinical context"
+description: "Provide relevant history and attachments before generating a note or document."
+---
+
+Context gives Cortexa information that may not be spoken during the consultation,
+such as medications, allergies, or a report the clinician has reviewed. Supply it
+before requesting the output that should use it.
+
+Use `scribe:write` to change context and `scribe:read` to check attachment status.
+
+## Add background text
+
+Set `background_context` when [creating a session](/sessions), or update it with
+`PATCH /sessions/{session_id}`:
+
+```bash
+curl --request PATCH "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID" \
+  --header "Authorization: Bearer $CORTEXA_JWT" \
+  --header 'Content-Type: application/json' \
+  --data '{"background_context":"Synthetic encounter. Relevant history: follow-up for sleep concerns. No medication changes documented."}'
+```
+
+This field accepts up to 100,000 characters. Send the complete background text you
+want stored: PATCH replaces this field rather than appending to it. If you need to
+combine existing background with new material, read the session first.
+
+## Upload a report
+
+`POST /sessions/{session_id}/context-documents` accepts multipart form data.
+Use the field name `files` for each file and an `Idempotency-Key` for the upload.
+
+```bash
+curl --request POST "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/context-documents" \
+  --header "Authorization: Bearer $CORTEXA_JWT" \
+  --header 'Idempotency-Key: visit-001-context-1' \
+  --form 'files=@./synthetic-report.txt;type=text/plain'
+```
+
+Use a local file containing synthetic clinical information. For multiple files,
+repeat `--form 'files=@...'`; do not set the multipart boundary yourself.
+
+| Constraint | Value |
+| --- | --- |
+| Files per request | 1–10 |
+| Total file content | At most 50 MiB |
+| Supported types | PDF, DOCX, TXT, Markdown, JPEG, PNG, WebP |
+| Retry | Keep the same files and idempotency key for the same upload |
+
+The `201` response contains an `items` array. Each item identifies an attachment:
+`id`, `name`, `mime_type`, `size_bytes`, `status`, and `index_status`.
+The upload response does not mean extraction and indexing have finished.
+
+## Wait for usable context
+
+```bash
+curl "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/context-documents" \
+  --header "Authorization: Bearer $CORTEXA_JWT"
+```
+
+This returns a paginated list. Wait for each required item to have `status: "ready"`
+and `index_status: "ready"` before generating output that depends on it. An extraction or
+indexing failure remains visible in these status fields. Resolve failed inputs
+rather than repeatedly generating a note that cannot use the missing report.
+
+## Remove an attachment
+
+`DELETE /sessions/{session_id}/context-documents`
+
+```bash
+curl --request DELETE "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/context-documents" \
+  --header "Authorization: Bearer $CORTEXA_JWT" \
+  --header 'Content-Type: application/json' \
+  --data '{"document_ids":["context_document_example"]}'
+```
+
+Replace the illustrative ID with one returned by the attachment list. The
+response is `{"deleted": true}`. This detaches the files from the session; it
+does not delete the clinician's library copy or rewrite existing generated notes.
+
+## Include relevant history explicitly
+
+Your application chooses which available history to submit. The public API does
+not provide a previous-session linking endpoint that automatically imports old
+notes as context. Include relevant authorized history as background text or an
+attachment when preparing the session.
+
+Continue with [consult notes](/notes) or [documents](/documents).

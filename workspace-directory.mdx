@@ -1,0 +1,58 @@
+---
+title: "Read the authorized workspace"
+description: "Find the workspace represented by a grant and list its active members."
+sidebarTitle: "Workspace directory"
+---
+
+The directory identifies the workspace already authorized by the clinician. It
+does not select another workspace or expand the grant's access.
+
+All directory endpoints require `scribe:read`.
+
+## Read the workspace
+
+```bash
+curl "$CORTEXA_API_BASE/teams" \
+  --header "Authorization: Bearer $CORTEXA_JWT"
+```
+
+This response is an array containing the authorized workspace. Each item has
+`id`, `name`, and `type`. Save its ID as `CORTEXA_WORKSPACE_ID`.
+
+The API uses `teams` in its route names; these records represent Cortexa
+workspaces. The detail endpoint returns the same workspace as a single object:
+
+```bash
+curl "$CORTEXA_API_BASE/teams/$CORTEXA_WORKSPACE_ID" \
+  --header "Authorization: Bearer $CORTEXA_JWT"
+```
+
+## List active members
+
+```bash
+curl "$CORTEXA_API_BASE/organizations/$CORTEXA_WORKSPACE_ID/members?page=1&per_page=20" \
+  --header "Authorization: Bearer $CORTEXA_JWT"
+```
+
+Use the **workspace ID** in both the `team_id` and `organization_id` path
+positions. The members endpoint returns a [paginated list](/errors#pagination).
+
+| Member field | Meaning |
+| --- | --- |
+| `user_id` | Cortexa user ID |
+| `name` | Member's display name, when available |
+| `role` | Membership role |
+
+Only active members of the authorized workspace are listed. The response does
+not include member email addresses or subscription/billing details.
+
+## Access boundaries
+
+A JWT for workspace A cannot read workspace B through these endpoints. To work
+with another workspace, complete authorization for that workspace and use its
+grant and token. Switching the clinician's active workspace in the Cortexa UI
+does not change an existing grant.
+
+Directory membership also does not make another member's sessions accessible to
+your grant. [Patients and sessions](/integration-flow#keep-the-ids-you-will-need)
+retain their own grant-scoped access.
