@@ -30,14 +30,15 @@ preview before merging. Avoid pushing documentation changes directly to `main`.
 
 | File | Purpose |
 | --- | --- |
-| `index.mdx` | Product overview, sandbox access, and resource ownership |
-| `authentication.mdx` | Clinician consent, token exchange, scopes, and revocation |
-| `quickstart.mdx` | First note with cURL and synthetic data |
-| `recordings.mdx` | Complete recordings and segmented transcription |
-| `workflows.mdx` | Documents, Ask AI, coding, attachments, and patient links |
-| `capabilities.mdx` | Supported API workflows and integration scope |
-| `errors.mdx` | Errors, request limits, retries, and pagination |
-| `downloads.mdx` | OpenAPI and Postman usage |
+| `index.mdx`, `integration-flow.mdx` | Product overview, responsibilities, and consultation lifecycle |
+| `sandbox.mdx`, `authentication.mdx`, `quickstart.mdx` | Access prerequisites, credential types, consent, and the first note |
+| `patients.mdx`, `sessions.mdx`, `context.mdx` | Patient/encounter mapping and clinical inputs |
+| `transcripts.mdx`, `recordings.mdx`, `segmented-transcription.mdx` | Text, signed recording uploads, and indexed audio chunks |
+| `templates.mdx`, `notes.mdx`, `documents.mdx`, `custom-templates.mdx` | Template selection, generation, and versioned edits |
+| `ask-ai.mdx`, `clinical-coding.mdx` | Session questions, code suggestions, and E/M |
+| `jobs.mdx`, `workspace-directory.mdx`, `workflows.mdx` | Async results, workspace access, and integration recipes |
+| `capabilities.mdx`, `production.mdx`, `faq.mdx` | Public capability boundaries and production preparation |
+| `errors.mdx`, `downloads.mdx` | Recovery, limits, pagination, OpenAPI, and Postman |
 | `openapi.json` | Generated partner contract for the API reference |
 | `postman.json` | Generated request collection with empty credential variables |
 | `docs.json` | Branding, navigation, API reference, and redirects |

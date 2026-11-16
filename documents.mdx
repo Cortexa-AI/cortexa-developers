@@ -1,0 +1,99 @@
+---
+title: "Create and edit documents"
+description: "Generate additional outputs from a session and preserve clinician edits with document versions."
+sidebarTitle: "Documents"
+---
+
+A session can have several documents, such as a consultation note and a referral
+letter. Each document has its own ID, content, status, and current version.
+
+Use `scribe:write` to create, edit, and delete documents; `scribe:generate` to
+generate their content; and `scribe:read` to retrieve documents and jobs.
+
+## Create an empty document
+
+`POST /sessions/{session_id}/documents`
+
+```bash
+curl --request POST "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/documents" \
+  --header "Authorization: Bearer $CORTEXA_JWT" \
+  --header 'Content-Type: application/json' \
+  --header 'Idempotency-Key: visit-001-letter-create' \
+  --data "{\"title\":\"Referral letter\",\"template_id\":\"$CORTEXA_TEMPLATE_ID\"}"
+```
+
+Choose a template from [document templates](/templates). `title` defaults to
+`Document`; omitting `template_id` uses Auto SOAP. The `201` response contains the
+document's `id`, `current_version: 1`, empty `rendered_text`, and empty `content`.
+
+<Note>
+  Creating a document does not generate its content. The empty document can have
+  `status: "ready"`; use the next request to generate text.
+</Note>
+
+## Generate or regenerate content
+
+Save the returned ID as `CORTEXA_DOCUMENT_ID`, then request content:
+
+```bash
+curl --request POST "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/documents/$CORTEXA_DOCUMENT_ID/content" \
+  --header "Authorization: Bearer $CORTEXA_JWT" \
+  --header 'Content-Type: application/json' \
+  --header 'Idempotency-Key: visit-001-letter-generate-1' \
+  --data '{"output_language_code":"en"}'
+```
+
+You can send `{}` to use the applicable language setting. The `202` receipt
+contains `job_id`, `status`, and `document_id`. [Poll the job](/jobs), then fetch
+the document. Use this endpoint with a new key when the clinician requests fresh
+content after a change to the session.
+
+## Read a document or list the session's documents
+
+```bash
+curl "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/documents/$CORTEXA_DOCUMENT_ID" \
+  --header "Authorization: Bearer $CORTEXA_JWT"
+```
+
+| Response field | Meaning |
+| --- | --- |
+| `id`, `session_id` | Document and parent consultation |
+| `status` | Current output state |
+| `title` | Display title |
+| `rendered_text` | Text your UI can present for review |
+| `content` | Structured content object; the shape depends on the template |
+| `current_version` | Revision to use as `base_version` when editing |
+| `generation_job_id` | Associated generation job, when present |
+| `failure_code` | Processing failure, when present |
+
+`GET /sessions/{session_id}/documents?page=1&per_page=20` lists documents using
+the standard paginated response.
+
+## Save an edit
+
+Read the document first, retain its `current_version`, and send that value as
+`base_version`. The example assumes the version you just read was 1:
+
+```bash
+curl --request PATCH "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/documents/$CORTEXA_DOCUMENT_ID" \
+  --header "Authorization: Bearer $CORTEXA_JWT" \
+  --header 'Content-Type: application/json' \
+  --data '{"base_version":1,"title":"Reviewed referral","rendered_text":"Clinician-reviewed synthetic referral text."}'
+```
+
+`base_version` is required. `title`, `rendered_text`, and `content` are optional
+editable fields. Retain the new `current_version` returned after saving.
+
+If another client has saved a newer version, the API returns `409`. Read the
+latest document and resolve the difference with the clinician before submitting
+an edit based on that version.
+
+## Delete a document
+
+`DELETE /sessions/{session_id}/documents/{document_id}` returns
+`{"deleted": true}` and makes that document unavailable to the partner.
+Deleting one document does not delete its session.
+
+For your EHR, save the reviewed text through your own system's API. The public
+document endpoints do not expose a PDF/DOCX download operation or a stored
+EHR-field mapping. Map the returned content to your EHR's fields in your integration.

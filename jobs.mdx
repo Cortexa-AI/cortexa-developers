@@ -1,0 +1,76 @@
+---
+title: "Wait for background work"
+description: "Poll generation and processing jobs, retrieve their results, and handle failures."
+sidebarTitle: "Jobs and results"
+---
+
+Some requests finish after their HTTP response. A `202` response means the work
+was accepted; the job tells you when the result is ready.
+
+## Which ID should you poll?
+
+| Workflow | Job reference | Where to get the result |
+| --- | --- | --- |
+| Consult note or custom template | `job_ids`, with `job_id` for a single/default reference | Returned `document_ids` |
+| Generate an existing document's content | `job_id` | The document you requested |
+| Complete an audio upload | `transcription_job_id`, when returned | Session transcript |
+| Ask AI | `job_id` | Session's Ask AI result endpoint |
+| Clinical coding | `job_id`, when returned | Session's clinical-codes endpoint |
+| Context attachment processing | Attachment status fields | Context-document list |
+
+Keep the session/document IDs from the initiating response. The generic job
+endpoint does not return note contents.
+
+## Poll a job
+
+`GET /jobs/{job_id}` requires `scribe:read` and the same grant that started the job.
+
+```bash
+curl "$CORTEXA_API_BASE/jobs/$CORTEXA_JOB_ID" \
+  --header "Authorization: Bearer $CORTEXA_JWT"
+```
+
+Example response:
+
+```json
+{
+  "id": "job_example",
+  "job_type": "output_generation",
+  "status": "succeeded",
+  "failure_code": null
+}
+```
+
+`job_type` describes the operation; use `status` to decide what to do next.
+
+| Status | Your next action |
+| --- | --- |
+| `queued`, `running`, or `processing` | Keep waiting and show progress in your UI |
+| `succeeded` | Retrieve the document, transcript, answer, or coding result |
+| `failed` | Read `failure_code`; resolve the cause before submitting new work |
+| `cancelled` | Stop polling and tell the clinician the work did not complete |
+
+As an integration recommendation, start polling about every two seconds and
+increase the interval for longer jobs. Honor `Retry-After` on `429` responses;
+polling consumes the application's shared request allowance. Set a waiting limit
+appropriate to your UI and retain the job ID so the clinician can return later.
+
+## Handle reused output
+
+A generation response can return ready documents without creating new work.
+When `status` is `succeeded` and `job_id` is null, retrieve the supplied document
+IDs rather than calling `/jobs/null`.
+
+## Retry the request or start new work?
+
+If the initial request loses its response, resend the same request with the same
+idempotency key. This recovers its original receipt. Poll the existing job after
+you have the receipt.
+
+Once a job reports failure, replaying the original key is not a new generation
+request. Resolve the failure and use a new operation/key when intentionally
+requesting new work. For an existing document, use its
+[content-generation endpoint](/documents#generate-or-regenerate-content).
+
+The public API uses polling. It does not expose completion webhooks, a generic
+job cancellation endpoint, or a job retry endpoint.

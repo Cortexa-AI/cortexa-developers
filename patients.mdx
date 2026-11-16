@@ -1,0 +1,107 @@
+---
+title: "Manage patients"
+description: "Create a patient, match your EHR identifiers, and attach consultations to the right record."
+---
+
+A patient connects consultations to the person being seen. Patient access is
+scoped to the clinician/workspace grant that created the patient.
+
+Use a [Partner JWT](/authentication). Reads require `scribe:read`; creation,
+updates, links, and deletion require `scribe:write`. Paths below are relative to
+`CORTEXA_API_BASE`, defined in [Sandbox](/sandbox).
+
+## Create or find a patient
+
+`POST /patients`
+
+```bash
+curl --request POST "$CORTEXA_API_BASE/patients" \
+  --header "Authorization: Bearer $CORTEXA_JWT" \
+  --header 'Content-Type: application/json' \
+  --data '{"external_patient_id":"ehr-patient-001","name":"Alex Example","pronouns":"they/them","additional_context":"Synthetic patient for integration testing."}'
+```
+
+| Field | Required | Meaning |
+| --- | --- | --- |
+| `external_patient_id` | Yes | Stable patient ID from your system; 1–255 characters |
+| `name` | Yes | Display name; 1–255 characters |
+| `pronouns` | No | Patient's pronouns |
+| `additional_context` | No | Patient background; up to 1,000 characters |
+| `restricted_identifiers` | No | Object containing identifiers supported by your clinical workflow |
+
+Example `201` response:
+
+```json
+{
+  "id": "patient_example",
+  "external_patient_id": "ehr-patient-001",
+  "name": "Alex Example",
+  "pronouns": "they/them",
+  "additional_context": "Synthetic patient for integration testing.",
+  "restricted_identifiers": null
+}
+```
+
+Save the actual returned `id` as `CORTEXA_PATIENT_ID`. Repeating a create with the
+same external ID in the same grant returns the existing patient. It does not
+update the patient: use PATCH for changed details.
+
+## Read and update
+
+| Method and path | Use |
+| --- | --- |
+| `GET /patients?external_patient_id=ehr-patient-001` | Find your patient by external ID; returns a paginated `items` list |
+| `GET /patients/{patient_id}` | Retrieve one patient by Cortexa ID |
+| `PATCH /patients/{patient_id}` | Update `name`, `pronouns`, `additional_context`, or `restricted_identifiers` |
+
+```bash
+curl --request PATCH "$CORTEXA_API_BASE/patients/$CORTEXA_PATIENT_ID" \
+  --header "Authorization: Bearer $CORTEXA_JWT" \
+  --header 'Content-Type: application/json' \
+  --data '{"name":"Alex Example","additional_context":"Updated synthetic background."}'
+```
+
+The external ID is assigned at creation and is not an editable field. See
+[pagination](/errors#pagination) to walk through larger patient lists.
+
+## Attach existing sessions
+
+You can supply `patient_id` when [creating a session](/sessions), or link sessions
+afterward. All IDs in a request must belong to the same grant.
+
+```bash
+curl --request POST "$CORTEXA_API_BASE/patients/$CORTEXA_PATIENT_ID/sessions" \
+  --header "Authorization: Bearer $CORTEXA_JWT" \
+  --header 'Content-Type: application/json' \
+  --data "{\"session_ids\":[\"$CORTEXA_SESSION_ID\"]}"
+```
+
+The response contains `patient_id`, `session_ids`, and `linked: true`.
+To unlink, send the same body with DELETE to the same path. The response has
+`linked: false`. A batch accepts 1–100 session IDs and validates all resources
+before applying changes. Linking changes the session's patient association;
+unlinking from a patient it is not attached to returns `409 PATIENT_LINK_MISMATCH`.
+
+## Delete a patient
+
+`DELETE /patients/{patient_id}` returns `deleted_patient_ids`.
+To delete a batch, use `DELETE /patients:batch-delete` with:
+
+```json
+{"patient_ids": ["patient_example"]}
+```
+
+A batch accepts 1–100 IDs. Patient deletion detaches their sessions; it does not
+delete the sessions. A deleted patient's external ID remains reserved, so choose
+a new synthetic external ID when starting a fresh test after deletion.
+
+## Common problems
+
+| Result | What to check |
+| --- | --- |
+| `404 RESOURCE_NOT_FOUND` | The Cortexa ID and the grant used to create it; the patient may also have been deleted |
+| Repeated POST returns old details | Use PATCH to update the existing patient |
+| `403 INSUFFICIENT_SCOPE` | The JWT needs `scribe:write` for changes |
+| `422` validation error | Send the documented fields; unknown request fields are rejected |
+
+Next, [create the patient's consultation session](/sessions).

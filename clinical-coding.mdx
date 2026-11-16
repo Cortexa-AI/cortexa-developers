@@ -1,0 +1,87 @@
+---
+title: "Request coding and E/M suggestions"
+description: "Retrieve clinical code suggestions and assess documentation for US outpatient E/M levels."
+sidebarTitle: "Clinical coding"
+---
+
+Coding suggestions help the clinician review documented diagnoses and procedures.
+Available code systems depend on the configured provider, region, and the
+clinician's entitlements. Confirm the systems you need during onboarding.
+
+All three coding endpoints below require `scribe:generate`, including the GET
+requests. The clinician remains responsible for reviewing suggestions before billing.
+
+## Retrieve or start clinical coding
+
+```bash
+curl "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/clinical-codes" \
+  --header "Authorization: Bearer $CORTEXA_JWT"
+```
+
+If no result exists, this GET can start coding using the clinician's configured
+code systems. It returns `202` while queued/running/processing and `200` when a
+result is no longer pending. Inspect the body status: `200` alone does not imply
+successful coding. The response uses `Cache-Control: no-store`.
+
+| Field | Meaning |
+| --- | --- |
+| `id` | Coding result ID, when available |
+| `job_id` | Processing job, when available |
+| `status` | Current coding state |
+| `code_systems` | Systems used for the request |
+| `suggestions` | Code objects, including `system`, `code`, `display`, and supporting `evidences` |
+| `failure_code` | Reason when processing fails |
+
+## Choose code systems or request a new run
+
+`POST /sessions/{session_id}/clinical-codes`
+
+```bash
+curl --request POST "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/clinical-codes" \
+  --header "Authorization: Bearer $CORTEXA_JWT" \
+  --header 'Content-Type: application/json' \
+  --header 'Idempotency-Key: visit-001-coding-1' \
+  --data '{"code_systems":["icd10cm-outpatient"]}'
+```
+
+`code_systems` requires 1–15 identifiers. The example requires a provider enabled
+for `icd10cm-outpatient`; use the system identifiers confirmed for your integration.
+The `202` response contains `job_id` and `status`. Poll the job and retrieve
+the coding result with the GET above.
+
+## Assess an E/M level
+
+First [generate a consult note](/notes) and wait for it to complete. Then request:
+
+```bash
+curl --get "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/clinical-codes/em-level" \
+  --header "Authorization: Bearer $CORTEXA_JWT" \
+  --data-urlencode 'patient_type=new_patient'
+```
+
+`patient_type` is required: choose `new_patient` or `established_patient`.
+Assessment uses the latest completed consult note produced through the
+consult-note endpoint and the current document version.
+
+| Response field | Meaning |
+| --- | --- |
+| `document_id`, `document_version` | The note revision assessed |
+| `status` | `suggested` or `insufficient_documentation` |
+| `code`, `level` | Suggested CPT code and MDM level, or null when unsupported |
+| `mdm.problems_addressed` | Classification and quoted support for problems addressed |
+| `mdm.data_reviewed` | Classification and quoted support for data reviewed |
+| `mdm.risk_of_management` | Classification and quoted support for management risk |
+| `mdm.summary` | Explanation of the assessment |
+| `requires_review` | Indicates clinician review is required |
+
+At least two supported MDM elements must meet the selected level. Insufficient
+documented evidence produces `insufficient_documentation` and a null code.
+Editing the source note invalidates its cached assessment; retrieve an assessment
+for the new version before relying on it.
+
+## Supported scope
+
+E/M covers US office/outpatient MDM-based assessment for new and established
+patients. It does not cover time-based billing or facility-specific levels.
+No completed consult note returns `409 CONSULT_NOTE_REQUIRED`. A provider failure
+or unsupported code system must be resolved before using the result.

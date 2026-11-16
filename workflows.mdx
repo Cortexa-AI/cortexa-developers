@@ -1,92 +1,71 @@
 ---
-title: Extended workflows
-description: Documents, Ask AI, coding, attachments and patient links.
+title: "Put the workflows together"
+description: "Build a follow-up note, a referral, or a complete review-and-save journey from the API guides."
+sidebarTitle: "Workflow recipes"
 ---
 
-Paths are relative to `/v2/scribe/open-api`. Send a partner Bearer JWT on every
-request. Requests documented with `Idempotency-Key` require a unique key for each
-new operation; retries must keep the same key and payload.
+These recipes connect the individual endpoint guides. Every step uses the same
+grant, and every asynchronous result must be ready before its dependent step.
 
-## Documents and custom templates
+## Record a consultation and produce a note
 
-1. `POST /sessions/{session_id}/documents` with `{"title":"Referral","template_id":"TEMPLATE_ID"}`
-   and `Idempotency-Key` creates an empty document. Omitting the template uses Auto SOAP.
-2. `POST /sessions/{session_id}/documents/{document_id}/content` with `{}` and a new
-   idempotency key queues generation. Poll `/jobs/{job_id}`, then fetch the document.
-3. PATCH the document with `{"base_version":1,"rendered_text":"Clinician-reviewed text"}`.
-   Read `current_version` before editing. A stale version returns 409.
-4. `PATCH /sessions/{session_id}/consult-note` edits the latest completed note produced
-   through the consult-note endpoint. It uses the same version contract.
-5. DELETE a document or session through its resource path. Deleted resources become
-   inaccessible to the partner.
+1. [Create or find the patient](/patients) using your stable EHR patient ID.
+2. [Create the session](/sessions) using your encounter ID and the returned patient ID.
+3. [Add background text or reports](/context). Wait for required files to be ready.
+4. Capture audio in your application and use [segmented transcription](/segmented-transcription).
+   Display per-chunk text as it returns, then finish the recording.
+5. [Generate a consult note](/notes) with a clinician-selected template.
+6. [Wait for the jobs](/jobs), retrieve the documents, and show the draft for review.
+7. Save reviewed edits and write the result to your EHR's encounter.
 
-For a new custom template response, POST
-`/sessions/{session_id}/client-customised-template/response` with an idempotency key:
+If the full recording already exists, replace step 4 with the
+[complete recording upload](/recordings) workflow.
 
-```json
-{
-  "name": "Patient instructions",
-  "prompt": "Summarize the documented management plan in plain language. Do not invent facts.",
-  "output_language_code": "en"
-}
-```
+## Produce a referral from the same consultation
 
-This creates a private clinician template and queues a document using the session's
-clinical context. The receipt includes `job_id` and `document_ids`. Replaying the
-same key does not create another template or document. Existing template permission
-and custom-template entitlement requirements apply.
+1. Reopen the existing session instead of creating another encounter.
+2. Select a [document template](/templates).
+3. [Create a document](/documents#create-an-empty-document) titled for the referral.
+4. Request [content generation](/documents#generate-or-regenerate-content) and wait for its job.
+5. Let the clinician review and edit the document, then save it through your EHR.
 
-## Ask AI
+For a new prompt-based output, such as patient instructions, use
+[Custom template responses](/custom-templates). That endpoint creates a private
+template and queues its document in one request.
 
-POST `/sessions/{session_id}/ask-ai` with `{"message":"Summarize the documented plan"}`
-and an idempotency key. The 202 response contains `job_id`. GET
-`/sessions/{session_id}/ask-ai/{job_id}` returns `status`, `answer`, `message_status`
-and `failure_code`. An answer is final when the job succeeds. Read-only result
-polling requires `scribe:read`; submitting a question requires `scribe:generate`.
-Partner questions use this session's context and prior partner replies. Unshared
-patient visits, internal conversation history, library search and automatic task
-creation are excluded from this endpoint.
+## Reopen and edit a completed note
 
-## Coding and E/M
+1. Look up the saved Cortexa session ID for the current grant and encounter.
+2. List its documents and retrieve the selected document.
+3. Retain `current_version` while the clinician edits the text.
+4. PATCH the document with that value as `base_version` and the edited content.
+5. If you receive `409`, retrieve the newer document and resolve the conflict.
+6. Save the accepted text through your EHR API and retain the new Cortexa version.
 
-GET `/sessions/{session_id}/clinical-codes` returns the latest coding result or starts
-one using the clinician's enabled coding settings. A pending run returns 202; a
-completed run returns 200 with its status and suggestions. A failed run includes
-`failure_code`. To rerun or choose code sets, POST the same path with an idempotency
-key and `{"code_systems":["icd10cm-outpatient"]}`. The configured coding provider
-must support the requested systems.
+An internal Cortexa session not shared through your grant is not accessible through
+this flow. Use the partner-created resource mapping, not an arbitrary product URL.
 
-GET `/sessions/{session_id}/clinical-codes/em-level?patient_type=new_patient`
-assesses the latest completed consult note. Use `established_patient` for a returning
-patient. The response includes three MDM elements, quoted evidence, overall level,
-suggested CPT code and the source document version. At least two supported elements
-must meet the selected level. Missing/unsupported evidence yields
-`insufficient_documentation` and a null code. A clinician must review suggestions
-before billing. Editing the note invalidates the cached assessment.
+## Add coding to a completed encounter
 
-## Context documents
+1. Complete the consult-note workflow and have the clinician review the note.
+2. Request [clinical code suggestions](/clinical-coding) for enabled code systems.
+3. For supported US office/outpatient visits, request an E/M assessment with the
+   correct new/established patient type.
+4. Present supporting evidence and any insufficient-documentation result.
+5. Let the clinician choose what to use in your billing workflow.
 
-POST `/sessions/{session_id}/context-documents` as multipart form data with one to
-ten `files` fields and an idempotency key. Supported file types are PDF, DOCX, TXT,
-Markdown, JPEG, PNG and WebP. The request's total file content is limited to 50 MiB.
-Cortexa extracts and indexes the files. Poll GET on the same path
-until `status` and `index_status` indicate readiness before requesting a note.
-An extraction failure remains visible through the item's status.
+Editing the note changes its version and invalidates cached E/M assessment.
+Obtain the assessment for the reviewed version before displaying it as current.
 
-DELETE the same path with `{"document_ids":["CONTEXT_DOCUMENT_ID"]}` to remove those
-attachments from this session. This changes the context used by subsequent note
-generation and leaves existing generated documents intact.
+## Build a useful progress UI
 
-## Patient links and directory
+| Stage | What your interface can show |
+| --- | --- |
+| Sending audio or context | Upload progress and retry controls owned by your client |
+| Waiting for transcription | Transcription job status, or accepted segment text |
+| Generating output | Job status and a way to return to the encounter later |
+| Ready | Reviewable document text and its current version |
+| Failed | A recoverable action based on the failure code, rather than a perpetual spinner |
+| Saving | Confirmation from your own EHR write-back |
 
-POST `/patients/{patient_id}/sessions` with `{"session_ids":["SESSION_ID"]}` to link
-existing sessions. DELETE the same path with the same body to unlink. Every patient
-and session in a batch must belong to the calling grant; an invalid resource fails
-the whole request. Unlinking a session from the wrong patient returns 409.
-
-DELETE `/patients:batch-delete` with `{"patient_ids":["PATIENT_ID"]}` deletes up to
-100 patients. Patient deletion detaches their visits; session deletion is separate.
-
-GET `/teams` returns the JWT's authorized workspace. GET `/teams/{team_id}` reads it,
-and GET `/organizations/{organization_id}/members` lists its active members with
-pagination. Use the workspace ID for both identifiers.
+Use [Jobs](/jobs) and [Errors and retries](/errors) to implement these states.

@@ -1,122 +1,161 @@
 ---
 title: "Generate your first note"
-description: "Create a synthetic encounter, submit a transcript, and retrieve a clinical note."
+description: "Create a synthetic encounter, submit a transcript, and retrieve a draft for clinician review."
 sidebarTitle: "Quickstart"
 ---
 
-Complete [Authentication](/authentication) and obtain a JWT with `scribe:read`,
-`scribe:write`, and `scribe:generate`. The clinician needs access to a note template
-and the relevant generation entitlement.
+This walkthrough produces a note from text, so you can exercise the complete
+workflow before adding audio capture or file uploads.
 
-## Prepare your requests
+## Before you begin
 
-The examples use cURL. Replace the placeholder token locally, then replace each
-resource ID with the value returned by the preceding request.
+- Complete [sandbox onboarding](/sandbox) and [authentication](/authentication).
+- Load the returned Partner JWT into `CORTEXA_JWT`. It needs `scribe:read`,
+  `scribe:write`, and `scribe:generate`.
+- The authorized clinician needs an available consult-note template and generation entitlement.
+- Run the commands in the same Bash shell with cURL and `jq` available.
+
+IDs and text returned below are illustrative. The commands capture your actual
+IDs from responses, so later requests use the resources you created.
 
 ```bash
 export CORTEXA_API_BASE='https://sandbox.api.cortexanote.com/v2/scribe/open-api'
-export CORTEXA_JWT='YOUR_ACCESS_TOKEN'
+export CORTEXA_DEMO_ID="demo-$(date -u +%Y%m%dT%H%M%SZ)"
 ```
 
-## 1. Create a patient
+The demo ID distinguishes this walkthrough from a later fresh run. Keep it and
+all operation keys unchanged when retrying the current run.
+
+## 1. Create a synthetic patient
 
 ```bash
-curl --request POST "$CORTEXA_API_BASE/patients" \
+patient_response=$(curl --fail-with-body --request POST "$CORTEXA_API_BASE/patients" \
   --header "Authorization: Bearer $CORTEXA_JWT" \
   --header 'Content-Type: application/json' \
-  --data '{"external_patient_id":"ehr-patient-001","name":"Synthetic Patient"}'
+  --data "$(jq -n --arg id "$CORTEXA_DEMO_ID-patient" \
+    '{external_patient_id:$id,name:"Alex Example"}')")
+
+export CORTEXA_PATIENT_ID=$(jq -r '.id' <<< "$patient_response")
 ```
 
-Save the returned `id`:
+The returned `id` is the Cortexa patient ID. Your external patient ID remains
+available for lookup. Repeating creation with the same external ID returns the
+existing patient within this grant.
+
+## 2. Create the consultation
 
 ```bash
-export CORTEXA_PATIENT_ID='PATIENT_ID'
-```
-
-You can look it up later with
-`GET /patients?external_patient_id=ehr-patient-001`. Creating the same external ID
-again returns the existing patient within your grant.
-
-## 2. Create the encounter
-
-```bash
-curl --request POST "$CORTEXA_API_BASE/sessions" \
+session_response=$(curl --fail-with-body --request POST "$CORTEXA_API_BASE/sessions" \
   --header "Authorization: Bearer $CORTEXA_JWT" \
   --header 'Content-Type: application/json' \
-  --data "{\"external_session_id\":\"ehr-visit-001\",\"patient_id\":\"$CORTEXA_PATIENT_ID\",\"title\":\"Synthetic consultation\",\"background_context\":\"Synthetic follow-up appointment.\"}"
+  --data "$(jq -n --arg id "$CORTEXA_DEMO_ID-visit" --arg patient "$CORTEXA_PATIENT_ID" \
+    '{external_session_id:$id,patient_id:$patient,title:"Synthetic follow-up",background_context:"Synthetic consultation for integration testing.",output_language_code:"en"}')")
+
+export CORTEXA_SESSION_ID=$(jq -r '.id' <<< "$session_response")
 ```
 
-Save the returned session `id`:
+The session keeps this consultation's inputs and outputs together. See
+[Sessions](/sessions) for optional language and template settings.
+
+## 3. Submit the conversation
 
 ```bash
-export CORTEXA_SESSION_ID='SESSION_ID'
-```
-
-You may omit `patient_id` when creating a session before selecting the patient.
-
-## 3. Submit a transcript
-
-```bash
-curl --request POST "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/transcript/segments" \
+curl --fail-with-body --request POST "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/transcript/segments" \
   --header "Authorization: Bearer $CORTEXA_JWT" \
   --header 'Content-Type: application/json' \
-  --header 'Idempotency-Key: visit-001-transcript-1' \
-  --data '{"segments":[{"speaker":"clinician","text":"Synthetic patient reports improved sleep."}],"status":"completed"}'
+  --header "Idempotency-Key: $CORTEXA_DEMO_ID-transcript-1" \
+  --data '{"segments":[{"speaker":"clinician","text":"How has your sleep been since the last visit?"},{"speaker":"patient","text":"It has improved."},{"speaker":"clinician","text":"We discussed continuing the documented sleep routine and following up in four weeks."}],"language_code":"en","status":"completed"}'
 ```
 
-Use `partial` while appending and `completed` on the final batch. Reuse the same
-idempotency key and body when retrying a batch. Use a new key for a distinct batch.
+The response includes the combined `full_text` and transcript `status`.
+For a longer conversation, submit multiple [transcript batches](/transcripts).
 
-## 4. Select a template and generate a note
+## 4. Choose an available template
 
 ```bash
-curl "$CORTEXA_API_BASE/templates" \
+curl --fail-with-body "$CORTEXA_API_BASE/templates/consult-note-templates" \
   --header "Authorization: Bearer $CORTEXA_JWT"
 ```
 
-Choose a template from the response's `items`, then submit its `id`:
+Choose an ID from the returned `items`. Load it into `CORTEXA_TEMPLATE_ID`:
 
 ```bash
-export CORTEXA_TEMPLATE_ID='TEMPLATE_ID'
+read -r -p 'Consult-note template ID: ' CORTEXA_TEMPLATE_ID
+export CORTEXA_TEMPLATE_ID
+```
 
-curl --request POST "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/consult-note" \
+If the list is empty, arrange template access with your integration contact.
+Do not copy a template ID from another user's example.
+
+## 5. Request the note
+
+```bash
+generation_response=$(curl --fail-with-body --request POST "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/consult-note" \
   --header "Authorization: Bearer $CORTEXA_JWT" \
   --header 'Content-Type: application/json' \
-  --header 'Idempotency-Key: visit-001-note-1' \
-  --data "{\"template_ids\":[\"$CORTEXA_TEMPLATE_ID\"]}"
+  --header "Idempotency-Key: $CORTEXA_DEMO_ID-note-1" \
+  --data "$(jq -n --arg template "$CORTEXA_TEMPLATE_ID" \
+    '{template_ids:[$template],output_language_code:"en"}')")
+
+printf '%s\n' "$generation_response" | jq .
+export CORTEXA_JOB_ID=$(jq -r '.job_id // empty' <<< "$generation_response")
+export CORTEXA_DOCUMENT_ID=$(jq -r '.document_ids[0]' <<< "$generation_response")
 ```
 
-The response uses HTTP 202 and contains `job_id`, `job_ids`, `document_ids`, and
-`status`. Save the job ID and the document ID from `document_ids`. Existing ready
-outputs may be reused: if `job_id` is null and `status` is `succeeded`, retrieve
-the documents directly.
+A typical `202` receipt looks like:
 
-## 5. Retrieve the result
+```json
+{
+  "job_id": "job_example",
+  "job_ids": ["job_example"],
+  "status": "queued",
+  "document_ids": ["document_example"]
+}
+```
+
+It identifies the work; it is not the finished note. If ready output is reused,
+`job_id` may be null and `status` may already be `succeeded`. In that case skip
+polling and retrieve the document.
+
+## 6. Wait and retrieve the note
+
+When `CORTEXA_JOB_ID` is nonempty, check the job:
 
 ```bash
-export CORTEXA_JOB_ID='JOB_ID'
-export CORTEXA_DOCUMENT_ID='DOCUMENT_ID'
-
-curl "$CORTEXA_API_BASE/jobs/$CORTEXA_JOB_ID" \
+curl --fail-with-body "$CORTEXA_API_BASE/jobs/$CORTEXA_JOB_ID" \
   --header "Authorization: Bearer $CORTEXA_JWT"
 ```
 
-Poll until the status is `succeeded` or `failed`, starting at about two-second
-intervals and backing off for longer jobs. Inspect `failure_code` on failure.
-Once the job succeeds, retrieve the document:
+Repeat while pending, starting around every two seconds and backing off for
+longer jobs. Stop on `succeeded`, `failed`, or `cancelled`. On failure, inspect
+`failure_code`; see [Jobs](/jobs). Once it succeeds, retrieve the document:
 
 ```bash
-curl "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/documents/$CORTEXA_DOCUMENT_ID" \
+curl --fail-with-body "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/documents/$CORTEXA_DOCUMENT_ID" \
   --header "Authorization: Bearer $CORTEXA_JWT"
 ```
 
-The result includes structured `content`, `rendered_text`, and `status`. Present
-the draft for clinical review before saving it to your EHR. Use
-`GET /sessions/SESSION_ID/documents` to list all documents for the session.
+The result includes `rendered_text`, structured `content`, `status`, and
+`current_version`. Present the text for clinician review. To retain edits in
+Cortexa, [save a versioned document update](/documents#save-an-edit). Use your own
+EHR API to save the reviewed text into the mapped encounter.
 
-## Continue your integration
+## What you have completed
 
-- [Recordings](/recordings): generate notes from audio.
-- [Extended workflows](/workflows): edit documents, add context, and request coding.
-- [Errors and retries](/errors): handle limits, conflicts, and asynchronous work.
-- [Downloads](/downloads): run individual requests in Postman.
+You have authorized a clinician, created a patient and session, submitted clinical
+text, and retrieved a generated draft. Add the workflows your product needs next:
+
+<Columns cols={2}>
+  <Card title="Use audio" icon="microphone" href="/recordings">
+    Replace transcript submission with a complete recording upload.
+  </Card>
+  <Card title="Add background reports" icon="file-medical" href="/context">
+    Include relevant clinical context before generation.
+  </Card>
+  <Card title="Create additional outputs" icon="copy" href="/documents">
+    Generate a referral or other document from the same session.
+  </Card>
+  <Card title="Handle real-world requests" icon="arrows-rotate" href="/errors">
+    Add retries, rate-limit handling, and version-conflict recovery.
+  </Card>
+</Columns>

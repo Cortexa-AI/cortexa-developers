@@ -1,74 +1,83 @@
 ---
 title: "Cortexa Developers"
-description: "Add clinical documentation to your EHR with the Cortexa Scribe API."
+description: "Build a clinical documentation workflow with the Cortexa Scribe API."
 sidebarTitle: "Overview"
 ---
 
-Connect your EHR to Cortexa Scribe to create patients and consultation sessions,
-submit transcripts or recordings, generate clinical notes, and retrieve documents
-for clinician review.
+Add clinical documentation to your EHR, telehealth platform, or clinical application.
+Send a consultation's transcript or audio, provide relevant patient context, and
+retrieve a draft note for the clinician to review and save.
+
+The Scribe API provides authenticated HTTP endpoints for your backend. Your
+application supplies the patient selection, recording controls, review interface,
+and write-back to your own clinical records.
 
 <Columns cols={2}>
-  <Card title="Authorize a clinician" icon="key" href="/authentication">
-    Connect your partner application to a clinician and workspace.
+  <Card title="Understand the workflow" icon="diagram-project" href="/integration-flow">
+    See who does what, from clinician consent to a reviewed note in your EHR.
+  </Card>
+  <Card title="Get sandbox access" icon="flask" href="/sandbox">
+    Arrange your application credentials, test clinician, workspace, and consent flow.
   </Card>
   <Card title="Generate your first note" icon="file-lines" href="/quickstart">
-    Follow a complete workflow with a synthetic patient and transcript.
+    Follow a complete example with a synthetic patient and transcript.
   </Card>
-  <Card title="Submit a recording" icon="microphone" href="/recordings">
-    Upload a complete recording or transcribe audio in segments.
-  </Card>
-  <Card title="Download API tools" icon="download" href="/downloads">
-    Get the OpenAPI specification and Postman collection.
+  <Card title="Explore the API" icon="code" href="/capabilities">
+    Find the supported workflows and the reference for all 48 operations.
   </Card>
 </Columns>
 
-## Start in the sandbox
+## What you can build
 
-The sandbox base URL is:
+| Workflow | Guides |
+| --- | --- |
+| Connect a clinician and workspace | [Authentication](/authentication) |
+| Match patients and consultations to your EHR | [Patients](/patients), [sessions](/sessions) |
+| Supply conversation text or audio | [Transcripts](/transcripts), [recordings](/recordings), [segmented transcription](/segmented-transcription) |
+| Include history and supporting reports | [Clinical context](/context) |
+| Generate and edit clinical outputs | [Templates](/templates), [notes](/notes), [documents](/documents), [custom prompts](/custom-templates) |
+| Ask about a consultation or request coding suggestions | [Ask AI](/ask-ai), [clinical coding](/clinical-coding) |
+| Retrieve completed work and save it in your EHR | [Jobs](/jobs), [workflow recipes](/workflows) |
+
+## A consultation in six steps
+
+1. Obtain the clinician's authorization and exchange it for a Partner JWT.
+2. Create a patient and session using your EHR's external IDs.
+3. Add relevant context and submit transcript text or audio.
+4. Select a template and request a note.
+5. Wait for generation and retrieve the document.
+6. Let the clinician review it, then save the result through your EHR's API.
+
+See [How an integration works](/integration-flow) for the complete sequence and
+[Quickstart](/quickstart) for executable requests.
+
+## Know the core objects
+
+| Object | Meaning |
+| --- | --- |
+| Partner application | Your integration and its server-side credentials |
+| Grant | Permission for your application to act for one clinician in one workspace |
+| Patient | Patient record accessible through that grant |
+| Session | One consultation, including its clinical inputs and outputs |
+| Template | Instructions and structure for an output |
+| Document | A generated or edited note, letter, or other output |
+| Job | Background work whose status you can poll |
+
+A grant is the access boundary. Patients and sessions created under one grant
+are not automatically visible under another, and internal Cortexa sessions are
+not automatically shared with partners. Save resource IDs alongside the grant
+that created them.
+
+## Start in the sandbox
 
 ```text
 https://sandbox.api.cortexanote.com/v2/scribe/open-api
 ```
 
-Arrange sandbox access with your Cortexa integration contact. You need an
-application ID, a server-side API key, a registered HTTPS callback, and a clinician
-authorization for a Cortexa workspace. Use synthetic encounters while developing
-your integration. Confirm the consent entry point and production access with
-Cortexa during onboarding.
+Arrange access with your Cortexa integration contact. A clinician test account,
+an application API key, and a Partner JWT serve different purposes; the
+[Sandbox guide](/sandbox) explains what you need before the first request.
 
-## Integration workflow
-
-1. Obtain the clinician's authorization for a specific workspace.
-2. Exchange the one-time authorization code for a short-lived JWT.
-3. Create a patient and session using your EHR's external IDs.
-4. Submit a transcript or recording and request a clinical note.
-5. Poll the job and retrieve the completed document.
-6. Present the draft for clinical review and save it through your EHR's own API.
-
-## Resource ownership
-
-Each authorization, called a **grant**, binds your application, an external
-clinician ID, a Cortexa user, and a workspace. Your application can hold grants for
-clinicians in multiple workspaces. Patients and sessions created through a grant
-are accessible only through that grant. Existing internal Cortexa sessions are not
-automatically shared with partners.
-
-Switching the clinician's active workspace in Cortexa does not change a grant.
-Keep the returned `grant_id` with your EHR's clinician and workspace mapping.
-
-`external_patient_id` and `external_session_id` are unique within a grant.
-Repeating a create request with the same external ID returns the existing resource;
-use PATCH to update its contents. A deleted resource's external ID remains reserved.
-
-## Available workflows
-
-The API covers patients, sessions, templates, versioned documents, Ask AI, clinical
-coding, E/M suggestions, context attachments, recordings, and the authorized
-workspace directory. See [API capabilities](/capabilities) for the supported scope
-and [Extended workflows](/workflows) for request examples.
-
-Cortexa's clinical permissions, plan entitlements, and generation quotas apply.
-Your EHR provides recording controls and saves reviewed results. Webhooks,
-embedded widgets, and vendor-specific FHIR/HL7 adapters are outside the current
-API scope.
+Clinical permissions, plan entitlements, and generation quotas apply. Review
+[API capabilities](/capabilities), [FAQ](/faq), and
+[production preparation](/production) as you plan your integration.

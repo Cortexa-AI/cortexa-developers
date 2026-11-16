@@ -1,0 +1,63 @@
+---
+title: "Ask a question about a session"
+description: "Submit a focused clinical-documentation question and retrieve the generated answer."
+sidebarTitle: "Ask AI"
+---
+
+Ask AI answers questions using the session's clinical context and prior partner
+replies. For example, ask it to summarize the plan already documented in a
+synthetic consultation.
+
+Submitting requires `scribe:generate`; reading the result requires `scribe:read`.
+Use the same grant for the session and the question.
+
+## Submit a question
+
+`POST /sessions/{session_id}/ask-ai`
+
+```bash
+curl --request POST "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/ask-ai" \
+  --header "Authorization: Bearer $CORTEXA_JWT" \
+  --header 'Content-Type: application/json' \
+  --header 'Idempotency-Key: visit-001-question-1' \
+  --data '{"message":"Summarize the follow-up plan documented in this consultation."}'
+```
+
+`message` is required and must contain 1–12,000 characters. The `202` response
+includes `job_id` and `status`. Save that job ID as `CORTEXA_JOB_ID`.
+
+## Read the answer
+
+```bash
+curl "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/ask-ai/$CORTEXA_JOB_ID" \
+  --header "Authorization: Bearer $CORTEXA_JWT"
+```
+
+| Field | Meaning |
+| --- | --- |
+| `job_id` | Work started by your question |
+| `status` | Job state; an answer is final when this is `succeeded` |
+| `answer` | Generated answer, which may be null before completion |
+| `message_status` | Associated message state, when available |
+| `failure_code` | Failure detail, when available |
+
+Continue polling while the work is pending. Stop on `failed` or `cancelled` and
+handle the failure. The generic [job endpoint](/jobs) also exposes status, but
+use this session-specific endpoint to retrieve the answer.
+
+## Context and action boundaries
+
+Partner questions use the authorized session and prior partner replies. They do
+not gain access to unshared visits, internal conversation history, library-wide
+search, or automatic task creation. Provide relevant material through
+[session context](/context) before asking about it.
+
+This endpoint returns an answer. It does not automatically edit a note or save
+the answer into your EHR. Your application decides how to display it and lets the
+clinician review any text they choose to use.
+
+## Troubleshooting
+
+An unrelated job ID or a job belonging to another session/grant returns `404`.
+When the submission response is lost, retry the same message and idempotency key.
+Do not submit a new question on every polling interval.

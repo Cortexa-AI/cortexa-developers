@@ -1,0 +1,63 @@
+---
+title: "Prepare for production"
+description: "Agree the production environment and verify the workflow your clinicians will actually use."
+---
+
+Complete your sandbox workflow before arranging production access with your
+Cortexa integration contact. Use the production origin, credentials, and consent
+entry point supplied for your integration.
+
+## Confirm the environment
+
+| Item | Confirm with Cortexa |
+| --- | --- |
+| API origin | Production hostname and data-hosting arrangements for your deployment |
+| Application | Production application ID, server-side key, and registered HTTPS callback |
+| Clinician access | How clinicians sign in and reach the consent flow |
+| Authorization | Workspaces, scopes, and entitlements required by your workflows |
+| Providers | Audio, generation, attachment processing, and coding capabilities you plan to use |
+| Request allowance | Application-level rate limit and any relevant plan/generation quotas |
+
+Use environment-specific credentials and signing keys. Do not construct a
+production hostname or assume sandbox grants and resource IDs transfer between
+environments.
+
+## Verify the clinician journey
+
+<Steps>
+  <Step title="Connect the correct clinician and workspace">
+    Exercise consent and your callback, validate `state`, exchange the code, and
+    store the grant with your clinician/workspace mapping. Confirm token renewal
+    works for that grant.
+  </Step>
+  <Step title="Use representative inputs">
+    Run the audio formats, transcript languages, templates, and file types your
+    integration will offer. Check the actual outputs with your clinical testers.
+  </Step>
+  <Step title="Handle processing and edits">
+    Show pending and failed jobs clearly. Keep operation keys stable during
+    retries. Handle document version conflicts without discarding reviewed text.
+  </Step>
+  <Step title="Save to the intended encounter">
+    Let the clinician review the result. Verify that your EHR write-back uses
+    the patient and encounter mapping for that session and does not create
+    duplicate records on retries.
+  </Step>
+</Steps>
+
+## Operate the integration
+
+Keep the API key in your backend's secret store. Renew Partner JWTs based on
+`expires_in`, and stop using grants that have been revoked or lost workspace
+access. Request a new authorization when necessary.
+
+Track response status, job failure codes, and `X-Cortexa-Request-Id` for support.
+Clinical payloads and credentials should not be included in ordinary integration
+logs. Honor `Retry-After` and back off polling as described in [Jobs](/jobs).
+
+Your application owns the recording interface, progress UI, clinician review,
+and EHR write-back. The current public contract does not include an embedded
+widget, completion webhooks, or a vendor-specific EHR adapter.
+
+See [Errors and retries](/errors) for recovery behavior and
+[API capabilities](/capabilities) for the supported integration surface.

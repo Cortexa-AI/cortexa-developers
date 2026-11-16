@@ -21,22 +21,59 @@
             "group": "Get started",
             "pages": [
               "index",
+              "integration-flow",
+              "sandbox",
               "authentication",
               "quickstart"
             ]
           },
           {
-            "group": "Build your integration",
+            "group": "Prepare the consultation",
             "pages": [
+              "patients",
+              "sessions",
+              "context"
+            ]
+          },
+          {
+            "group": "Capture the conversation",
+            "pages": [
+              "transcripts",
               "recordings",
-              "workflows",
-              "capabilities"
+              "segmented-transcription"
+            ]
+          },
+          {
+            "group": "Generate clinical documents",
+            "pages": [
+              "templates",
+              "notes",
+              "documents",
+              "custom-templates"
+            ]
+          },
+          {
+            "group": "Ask and assess",
+            "pages": [
+              "ask-ai",
+              "clinical-coding"
+            ]
+          },
+          {
+            "group": "Connect your workflow",
+            "pages": [
+              "jobs",
+              "workspace-directory",
+              "workflows"
             ]
           },
           {
             "group": "Resources",
             "pages": [
+              "capabilities",
               "errors",
+              "production",
+              "faq",
               "downloads"
             ]
           }

@@ -1,0 +1,70 @@
+---
+title: "Submit transcript text"
+description: "Append conversation text you already have and mark the final batch complete."
+sidebarTitle: "Transcripts"
+---
+
+Use this path when your application already has text from a consultation. For
+audio input, use [recording uploads](/recordings) or
+[segmented transcription](/segmented-transcription).
+
+You need an existing session, a Partner JWT with `scribe:write` to append text,
+and `scribe:read` to retrieve the combined transcript.
+
+## Append a batch
+
+`POST /sessions/{session_id}/transcript/segments`
+
+```bash
+curl --request POST "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/transcript/segments" \
+  --header "Authorization: Bearer $CORTEXA_JWT" \
+  --header 'Content-Type: application/json' \
+  --header 'Idempotency-Key: visit-001-text-batch-1' \
+  --data '{"segments":[{"speaker":"clinician","text":"How has your sleep been?","start_seconds":0,"end_seconds":3},{"speaker":"patient","text":"It has improved since the last visit.","start_seconds":4,"end_seconds":8}],"language_code":"en","status":"completed"}'
+```
+
+The conversation above is synthetic.
+
+| Field | Required | Meaning |
+| --- | --- | --- |
+| `segments` | Yes | 1–1,000 segments in this batch |
+| `segments[].text` | Yes | Nonempty text, up to 100,000 characters per segment |
+| `segments[].speaker` | No | Speaker label supplied by your application |
+| `segments[].start_seconds` / `end_seconds` | No | Nonnegative timestamps in seconds |
+| `language_code` | No | Transcript language |
+| `status` | No | `partial` for more text to come; `completed` for the final batch, which is the default |
+
+The response includes `status`, `full_text`, `language`, and `segments`.
+
+## Send multiple batches
+
+Use `partial` for intermediate batches and `completed` for the final one. Send a
+new `Idempotency-Key` for each distinct batch. If a request times out, retry that
+batch with the same key and unchanged body so it is not appended again.
+
+Text submission is an append operation. Do not resend the entire accumulated
+transcript under a new key when you only intend to add a new segment.
+
+## Retrieve the transcript
+
+```bash
+curl "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/transcript" \
+  --header "Authorization: Bearer $CORTEXA_JWT"
+```
+
+Example response excerpt:
+
+```json
+{
+  "status": "completed",
+  "full_text": "How has your sleep been?\nIt has improved since the last visit.",
+  "language": "en"
+}
+```
+
+`404 TRANSCRIPT_NOT_FOUND` means a transcript is not available yet. If you used
+complete audio upload, check its transcription job. If you used segmented audio,
+call finish after all chunks have been accepted.
+
+Once the transcript and any required [context](/context) are ready,
+[generate a consult note](/notes).

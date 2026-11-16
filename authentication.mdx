@@ -1,49 +1,75 @@
 ---
 title: "Authentication"
-description: "Authorize a clinician and exchange partner credentials for a JWT."
+description: "Connect a clinician, exchange an authorization code, and call the API with the correct token."
 ---
 
-## Set up your application
+Clinical Open API requests use a **Partner JWT** issued for a clinician/workspace
+grant. Your application API key obtains that JWT after the clinician has authorized
+access. Arrange sandbox access and the consent entry point before starting.
 
-Your Cortexa integration contact provisions an application with an exact HTTPS
-callback URI, allowed scopes, and a request limit. Arrange the clinician consent
-entry point with Cortexa before starting the token exchange.
+## Understand the three credentials
 
-The API key has the form `ctxa_APPLICATION_ID.SECRET` and is shown once. Store it
-in your server's secret manager. Use it only from your backend; do not embed it in
-your EHR frontend or include it in URLs.
+| Credential | Who uses it | Purpose |
+| --- | --- | --- |
+| Clinician login token | The Cortexa sign-in/consent flow | Identify the clinician and create or revoke authorization |
+| Application API key | Your backend | Exchange an authorization code or valid grant ID at `POST /jwt` |
+| Partner JWT | Your API integration | Call clinical Open API endpoints with `Authorization: Bearer ...` |
 
-All token requests below use the sandbox API base:
+The API key and the clinician's normal login token are not accepted in place of a
+Partner JWT on patients, sessions, or documents. A Partner JWT cannot grant consent.
+
+## Set up the application
+
+Your integration contact provisions an application ID, an API key, an exact HTTPS
+callback URI, scopes, and a request limit. Keep the API key in your backend secret
+store. It has the form `ctxa_APPLICATION_ID.SECRET` and must not be embedded in the
+client application or included in URLs.
+
+The following examples use the sandbox base. Load `CORTEXA_API_KEY` from your
+secret store and set `CORTEXA_AUTHORIZATION_CODE` from the completed callback.
 
 ```bash
 export CORTEXA_API_BASE='https://sandbox.api.cortexanote.com/v2/scribe/open-api'
 ```
 
-Load your API key into `CORTEXA_API_KEY` from your secret manager before running
-the examples.
+## Obtain clinician authorization
 
-## Obtain clinician consent
+<Steps>
+  <Step title="Start the agreed consent flow">
+    Generate a random `state` bound to the clinician's current login in your
+    application. Provide your application ID, external clinician ID, exact
+    callback URI, requested scopes, and workspace through the consent flow
+    agreed with Cortexa.
+  </Step>
+  <Step title="Let the clinician authorize the workspace">
+    The clinician signs in to Cortexa and reviews the application and permissions.
+    The authorization binds your application and external clinician ID to that
+    Cortexa user and workspace.
+  </Step>
+  <Step title="Handle the callback">
+    Cortexa returns a `redirect_url` containing `code` and `state` for the
+    registered callback. Validate `state` against the saved value, then exchange
+    the code from your backend within 60 seconds. Each code can be used once.
+  </Step>
+</Steps>
 
-Authorization connects your application and external clinician ID to a Cortexa
-user and workspace. The clinician reviews the application, workspace, and requested
-permissions in the agreed consent flow.
+The clinician-facing backend contract is `POST /v2/scribe/api-authorizations`,
+authenticated with the clinician's normal Cortexa login token. It is outside the
+partner Open API namespace and is not served on the sandbox API hostname.
+Coordinate the consent UI and its origin during onboarding; the authorization
+endpoint alone is not a hosted sign-in page.
 
-1. Create a random `state` value and bind it to the clinician's current EHR login.
-2. Use the application ID, external clinician ID, registered callback URI, and
-   requested scopes in the consent flow agreed with Cortexa.
-3. On the callback, compare `state` with the saved login-bound value.
-4. Exchange the returned `code` from your backend within 60 seconds.
+The consent request identifies `application_id`, `workspace_id`,
+`external_user_id`, `redirect_uri`, `state`, and `scopes`. The callback must match
+exactly. An external clinician ID already linked to another Cortexa user cannot
+be rebound through a new authorization request.
 
-The callback must match the registered URI exactly. An external clinician ID
-cannot be rebound to a different Cortexa user. A partner API key or JWT cannot
-grant consent on the clinician's behalf.
+## Exchange the code
 
-## Exchange the authorization code
-
-Set `CORTEXA_AUTHORIZATION_CODE` to the code received at your callback:
+`POST /jwt` requires the `Cortexa-Api-Key` header and a JSON body:
 
 ```bash
-curl --request POST "$CORTEXA_API_BASE/jwt" \
+curl --fail-with-body --request POST "$CORTEXA_API_BASE/jwt" \
   --header "Cortexa-Api-Key: $CORTEXA_API_KEY" \
   --header 'Content-Type: application/json' \
   --data "{\"authorization_code\":\"$CORTEXA_AUTHORIZATION_CODE\"}"
@@ -53,52 +79,87 @@ Example response:
 
 ```json
 {
-  "access_token": "JWT",
+  "access_token": "JWT_RETURNED_BY_CORTEXA",
   "token_type": "Bearer",
   "expires_in": 900,
-  "grant_id": "GRANT_ID",
+  "grant_id": "grant_example",
   "scope": "scribe:generate scribe:read scribe:write"
 }
 ```
 
-Each code can be used once. Save `grant_id` with your clinician and workspace
-mapping. Use the returned `expires_in` to track token expiry.
+Save the actual `access_token` as `CORTEXA_JWT`. Persist `grant_id` with your
+application's clinician and workspace mapping. Use the returned `expires_in`
+rather than assuming a fixed lifetime.
+
+| Response field | Use |
+| --- | --- |
+| `access_token` | Bearer credential for clinical requests |
+| `expires_in` | Validity in seconds from issuance |
+| `grant_id` | Authorization to use for later token exchanges |
+| `scope` | Permissions carried by this token |
+
+## Make an authenticated request
+
+```bash
+curl --fail-with-body "$CORTEXA_API_BASE/teams" \
+  --header "Authorization: Bearer $CORTEXA_JWT"
+```
+
+This returns the workspace represented by the grant. All resources you create
+with this JWT remain associated with that grant.
 
 ## Obtain another token
 
-For an existing grant, set `CORTEXA_GRANT_ID` to the saved ID and call the same
-endpoint with your server-side API key:
+Before expiry, exchange the same server-side API key and the saved grant ID:
 
 ```bash
-curl --request POST "$CORTEXA_API_BASE/jwt" \
+curl --fail-with-body --request POST "$CORTEXA_API_BASE/jwt" \
   --header "Cortexa-Api-Key: $CORTEXA_API_KEY" \
   --header 'Content-Type: application/json' \
   --data "{\"grant_id\":\"$CORTEXA_GRANT_ID\"}"
 ```
 
-Send either `authorization_code` or `grant_id`. This is a partner token exchange
-API; it does not expose OAuth discovery or refresh tokens.
+Set `CORTEXA_GRANT_ID` to the saved value. Send exactly one of
+`authorization_code` and `grant_id`. The clinician does not need to sign in again
+for each renewal while the grant remains valid. This exchange does not use an
+OAuth refresh token or expose OAuth discovery endpoints.
 
-## Call clinical endpoints
-
-Use `Authorization: Bearer JWT` on clinical requests. The application key is used
-for token exchange; clinical endpoints use the resulting JWT.
+## Request the scopes your workflow needs
 
 | Scope | Access |
 | --- | --- |
-| `scribe:read` | Read patients, sessions, transcripts, templates, documents, attachments, replies, jobs, and the authorized workspace directory |
-| `scribe:write` | Create, update, and delete patients, sessions, and documents; link patients; upload transcripts, audio, and context files |
-| `scribe:generate` | Generate notes, documents, custom template responses, and Ask AI replies; request clinical coding and E/M suggestions |
+| `scribe:read` | Patients, sessions, transcripts, templates, documents, attachments, answers, jobs, and the authorized workspace directory |
+| `scribe:write` | Patient/session/document changes, session links, transcript submission, and audio/context uploads |
+| `scribe:generate` | Notes, document content, custom template responses, Ask AI, coding, and E/M suggestions |
 
-## Token verification and revocation
+A scope permits an operation category; current workspace permissions, template
+access, plan entitlements, and quotas still apply. Coding GET and E/M GET require
+`scribe:generate` because they can perform generation or assessment.
 
-JWTs use RS256. Public verification keys are available at
-`https://sandbox.api.cortexanote.com/v2/scribe/open-api/.well-known/jwks.json`.
-Match `kid`, allow only RS256, and verify the issuer, audience, and expiry agreed
-for your environment. Tokens contain `client_id`, `grant_id`, `sub`, `workspace_id`,
-`scope`, `iat`, and `jti`; they contain no clinical content.
+## Revocation and token verification
 
-Cortexa checks current application, grant, user, and workspace permissions on every
-request. Clinician revocation, account deletion, membership removal, application
-disablement, and API key rotation invalidate access. Obtain consent again when
-a grant has been revoked. Use the credentials assigned for each environment.
+The clinician can list and revoke grants through Cortexa's authorization-management
+flow. Revocation, account deletion, workspace access loss, application disablement,
+and key rotation can invalidate an already issued JWT. Cortexa rechecks current
+permission on every request.
+
+JWTs use RS256. Public keys are available without authentication at
+`GET /.well-known/jwks.json`. If you verify tokens in your own integration, match
+`kid`, enforce RS256, and check the configured issuer, audience, and expiry.
+Tokens identify the application, grant, user, workspace, scopes, and versions;
+they contain no clinical content. Use credentials and signing keys assigned to
+the relevant environment.
+
+## Troubleshooting
+
+| Error | Recovery |
+| --- | --- |
+| `401 INVALID_API_KEY` | Check the application's key, environment, enabled state, and key rotation |
+| `401 INVALID_AUTHORIZATION_CODE` | The code may be expired or already used; restart the consent flow |
+| `401 INVALID_GRANT` | Check the grant belongs to this application and remains authorized |
+| `401 INVALID_ACCESS_TOKEN` | Use the Partner JWT; renew if expired and verify the grant remains valid |
+| `403 INSUFFICIENT_SCOPE` | Obtain authorization/application scopes required by the operation |
+| `409 EXTERNAL_USER_ALREADY_LINKED` | Check your external clinician identity mapping |
+| `422` on token exchange | Send exactly one of `authorization_code` or `grant_id` |
+
+Continue with [your first note](/quickstart).

@@ -1,0 +1,112 @@
+---
+title: "Transcribe during a consultation"
+description: "Send independently decodable audio chunks and assemble the transcript when recording finishes."
+sidebarTitle: "Segmented transcription"
+---
+
+Use segmented transcription when your application captures audio during the
+consultation. Each upload waits for that chunk's transcription and returns text
+you can display. The combined session transcript is updated when you call finish.
+
+You need an existing session and a Partner JWT with `scribe:write`. Your frontend
+provides recording controls and produces independently decodable audio files.
+These are HTTP upload endpoints; the public API does not expose a WebSocket audio
+stream.
+
+## 1. Start a recording
+
+```bash
+curl --request POST "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/restful-segment-transcription" \
+  --header "Authorization: Bearer $CORTEXA_JWT" \
+  --header 'Idempotency-Key: visit-001-segment-recording-1'
+```
+
+Example `201` response:
+
+```json
+{"recording_id":"recording_example","status":"uploading"}
+```
+
+Save the returned `recording_id` as `CORTEXA_RECORDING_ID`.
+
+## 2. Upload a chunk
+
+```bash
+curl --request POST "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/restful-segment-transcription/$CORTEXA_RECORDING_ID:transcribe" \
+  --header "Authorization: Bearer $CORTEXA_JWT" \
+  --form 'file=@./synthetic-chunk-0.wav;type=audio/wav' \
+  --form 'index=0' \
+  --form 'duration=30'
+```
+
+Use the actual duration of your local audio file; 30 seconds is illustrative.
+
+| Field | Required | Constraint |
+| --- | --- | --- |
+| `file` | Yes | Audio MIME type; 1 byte to 50 MiB; each file must decode independently |
+| `index` | Yes | Integer from 0 to 9,999; numbering starts at zero |
+| `duration` | Yes | This chunk's duration in **seconds**, greater than zero and at most 360 |
+
+Example response:
+
+```json
+{
+  "recording_id": "recording_example",
+  "index": 0,
+  "transcript": "Synthetic patient reports improved sleep.",
+  "duration_seconds": 30
+}
+```
+
+Store each successful chunk response. You can show its transcript immediately
+while additional chunks are being uploaded.
+
+## 3. Continue and recover interrupted uploads
+
+Chunks may arrive out of order. The recording ID and index identify the chunk;
+the chunk endpoint does not require an `Idempotency-Key` header.
+
+- Retrying an index with identical bytes and duration returns its original result.
+- Reusing an index with different content or duration returns `409`.
+- After a network or transcription failure, retry the same index and content.
+- Do not split a recording file at arbitrary byte offsets unless every resulting
+  chunk is a valid audio file on its own.
+
+## 4. Finish the recording
+
+```bash
+curl --request POST "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/restful-segment-transcription/$CORTEXA_RECORDING_ID:finish" \
+  --header "Authorization: Bearer $CORTEXA_JWT"
+```
+
+Before finishing, ensure every index from zero to the last uploaded index exists.
+The server orders the chunks, offsets their timestamps, and appends the assembled
+transcript to the session once.
+
+Example response:
+
+```json
+{
+  "recording_id": "recording_example",
+  "status": "completed",
+  "transcript": "Synthetic patient reports improved sleep.",
+  "duration_seconds": 30
+}
+```
+
+Repeating finish returns the same result without duplicating the transcript.
+A finished recording accepts retries of existing chunks but rejects new indices.
+Start a new recording when the clinician needs to continue recording.
+
+## Common problems
+
+| Result | Action |
+| --- | --- |
+| `409` on finish | Upload any missing indices, then finish again |
+| `409 RECORDING_FINISHED` | Start another recording for new audio |
+| `413 INVALID_AUDIO_SIZE` | Send a nonempty chunk no larger than 50 MiB |
+| `422 INVALID_AUDIO_TYPE` | Send an audio MIME type and independently decodable audio |
+| `422` for duration | Use seconds for this chunk, in the accepted range |
+
+Read the [session transcript](/transcripts#retrieve-the-transcript), then
+[generate the note](/notes).
