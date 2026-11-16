@@ -80,8 +80,8 @@ does not delete the clinician's library copy or rewrite existing generated notes
 
 ## Link previous consultations
 
-Use `PUT /sessions/{session_id}/context/sessions` to replace the historical notes
-available to future generation:
+Use `PUT /sessions/{session_id}/context/sessions` to choose previous consultations
+whose notes provide context for future generation:
 
 ```bash
 curl --request PUT "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/context/sessions" \
@@ -91,16 +91,18 @@ curl --request PUT "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/context/sessi
 ```
 
 Choose up to 20 other sessions for the **same patient and grant**. Each source
-needs a completed consult note. The response and corresponding GET return each
-source session, selected document, and saved document version. Linking stores a
-snapshot of that note's text. Later source edits do not silently change it;
-repeat PUT to refresh the snapshot. An empty list removes every link.
+needs a completed consult note. The response and corresponding GET return the
+linked session IDs. Each generation reads the latest completed consult note from
+each linked session, including saved edits. You do not need to link the session
+again after editing or generating a new source note. An empty list removes every link.
 
 Linked notes can provide generation evidence without new audio. They are marked
 as historical sources, distinct from the current consultation's transcript.
 An active or failed transcription still needs resolution before generation.
-Deleting a source session or note, changing its patient association, or revoking
-the grant excludes that source from future generation. Existing output is not
+Deleted notes are excluded; if another completed consult note exists in that
+session, generation uses the latest remaining one. Deleting a source session,
+changing its patient association, or revoking the grant excludes that source.
+Existing output is not
 rewritten by a context change; regenerate deliberately when needed.
 
 A different patient returns `422 CONTEXT_PATIENT_MISMATCH`; a resource outside the
