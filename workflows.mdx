@@ -15,7 +15,7 @@ grant, and every asynchronous result must be ready before its dependent step.
 4. Capture audio in your application and use [segmented transcription](/segmented-transcription).
    Display per-chunk text as it returns, then finish the recording.
 5. [Generate a consult note](/notes) with a clinician-selected template.
-6. [Wait for the jobs](/jobs), retrieve the documents, and show the draft for review.
+6. [Display the stream](/streaming) and use `output.ready` to present the saved draft for review.
 7. Save reviewed edits and write the result to your EHR's encounter.
 
 If the full recording already exists, replace step 4 with the
@@ -26,7 +26,7 @@ If the full recording already exists, replace step 4 with the
 1. Reopen the existing session instead of creating another encounter.
 2. Select a [document template](/templates).
 3. [Create a document](/documents#create-an-empty-document) titled for the referral.
-4. Request [content generation](/documents#generate-or-regenerate-content) and wait for its job.
+4. Request [content generation](/documents#generate-or-regenerate-content), display its text, and wait for `output.ready`.
 5. Let the clinician review and edit the document, then save it through your EHR.
 
 For a new prompt-based output, such as patient instructions, use
@@ -63,9 +63,9 @@ Obtain the assessment for the reviewed version before displaying it as current.
 | --- | --- |
 | Sending audio or context | Upload progress and retry controls owned by your client |
 | Waiting for transcription | Transcription job status, or accepted segment text |
-| Generating output | Job status and a way to return to the encounter later |
+| Generating output | Incoming text per document; reconnect if the stream drops |
 | Ready | Reviewable document text and its current version |
 | Failed | A recoverable action based on the failure code, rather than a perpetual spinner |
 | Saving | Confirmation from your own EHR write-back |
 
-Use [Jobs](/jobs) and [Errors and retries](/errors) to implement these states.
+Use [Streaming](/streaming), [Jobs](/jobs), and [Errors and retries](/errors) to implement these states.

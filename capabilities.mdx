@@ -19,7 +19,7 @@ response schemas. These guides explain how to combine them into a clinical workf
 | Complete audio | Create an upload, obtain signed part URLs, complete, and process the recording | [Recordings](/recordings) |
 | Audio during a consultation | Start a recording, transcribe indexed chunks, and finish the assembled transcript | [Segmented transcription](/segmented-transcription) |
 | Templates | List all or category-specific templates; retrieve detail | [Templates](/templates) |
-| Consult notes | Queue generation and edit the latest completed note | [Notes](/notes) |
+| Consult notes | Stream generated text and the saved document; edit the latest completed note | [Notes](/notes) |
 | Documents | Create, list, retrieve, edit, delete, and generate/regenerate content | [Documents](/documents) |
 | Custom prompts | Create a private prompt-based template and generate a document | [Custom templates](/custom-templates) |
 | Ask AI | Submit a session question and retrieve the answer | [Ask AI](/ask-ai) |
@@ -38,7 +38,7 @@ patients and sessions. See [the complete flow](/integration-flow).
 | --- | --- |
 | Sign in and authorize | Cortexa clinician login plus the consent flow agreed during onboarding |
 | Call clinical endpoints | Partner JWT from the API-key/token exchange |
-| Know when processing finishes | Poll job or workflow-result endpoints |
+| Know when processing finishes | Receive streamed note/document completion; poll jobs for other background work |
 | Update clinical text | Versioned document edits using `base_version` |
 | Map output into EHR fields | Your integration maps returned content to your own fields |
 | Retrieve patient history | Submit the relevant authorized context explicitly |
@@ -57,8 +57,9 @@ automatically make these operations available to partner JWTs.
 
 Custom template generation accepts a name and prompt; it does not accept an
 arbitrary output JSON schema. Audio during a consultation uses HTTP chunks rather
-than a public WebSocket connection. Note generation returns jobs and documents
-rather than streaming generated text in the generation response.
+than a public WebSocket connection. Consult-note and document-content generation
+use [SSE streaming](/streaming) by default, with `stream=false` for JSON job receipts.
+Other processing endpoints retain their documented response types.
 
 ## Availability and permissions
 

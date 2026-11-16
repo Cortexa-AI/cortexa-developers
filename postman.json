@@ -608,6 +608,10 @@
           {
             "key": "Content-Type",
             "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "text/event-stream"
           }
         ],
         "body": {
@@ -627,9 +631,11 @@
             "type": "text/javascript",
             "exec": [
               "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));",
-              "if (pm.response.code < 300) { const data = pm.response.json();",
-              "if (data.job_id) pm.collectionVariables.set(\"job_id\", data.job_id);",
-              "pm.collectionVariables.set(\"document_id\", data.document_ids[0]);",
+              "for (const frame of pm.response.text().split(/\\r?\\n\\r?\\n/)) {",
+              "  const line = frame.split(/\\r?\\n/).find(line => line.startsWith(\"data: \"));",
+              "  if (!line) continue; const data = JSON.parse(line.slice(6));",
+              "  if (data.document_ids?.[0]) pm.collectionVariables.set(\"document_id\", data.document_ids[0]);",
+              "  if (data.job_ids?.[0]) pm.collectionVariables.set(\"job_id\", data.job_ids[0]);",
               "}"
             ]
           }
@@ -831,6 +837,10 @@
           {
             "key": "Content-Type",
             "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "text/event-stream"
           }
         ],
         "body": {
@@ -850,8 +860,11 @@
             "type": "text/javascript",
             "exec": [
               "pm.test(\"Request succeeded\", () => pm.expect(pm.response.code).to.be.within(200, 299));",
-              "if (pm.response.code < 300) { const data = pm.response.json();",
-              "if (data.job_id) pm.collectionVariables.set(\"job_id\", data.job_id);",
+              "for (const frame of pm.response.text().split(/\\r?\\n\\r?\\n/)) {",
+              "  const line = frame.split(/\\r?\\n/).find(line => line.startsWith(\"data: \"));",
+              "  if (!line) continue; const data = JSON.parse(line.slice(6));",
+              "  if (data.document_ids?.[0]) pm.collectionVariables.set(\"document_id\", data.document_ids[0]);",
+              "  if (data.job_ids?.[0]) pm.collectionVariables.set(\"job_id\", data.job_ids[0]);",
               "}"
             ]
           }

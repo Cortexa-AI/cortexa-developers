@@ -53,10 +53,16 @@ sidebarTitle: "FAQ"
     to append the ordered result to the session. These endpoints do not expose
     a public WebSocket streaming connection.
   </Accordion>
+  <Accordion title="Do I have to poll to get my note?">
+    No. Consult-note and document-content generation stream text by default.
+    The final `output.ready` event includes the saved document. See
+    [Streaming](/streaming) for the event format and reconnect behavior.
+  </Accordion>
   <Accordion title="Does a 202 response contain my finished note?">
-    It contains a processing receipt. Poll the returned job IDs, then retrieve
-    the documents. A reused ready output may be returned without a new job;
-    [Jobs](/jobs) explains both cases.
+    With `stream=false`, generation returns a `202` processing receipt. Poll its
+    job IDs, then retrieve the documents. Reused ready output may have no new
+    job; [Jobs](/jobs) explains both cases. Other asynchronous endpoints also
+    use processing receipts.
   </Accordion>
   <Accordion title="Will Cortexa automatically save a note in my EHR?">
     Your integration retrieves the result, lets the clinician review it, and

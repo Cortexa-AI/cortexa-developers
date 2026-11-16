@@ -48,6 +48,7 @@
             "pages": [
               "templates",
               "notes",
+              "streaming",
               "documents",
               "custom-templates"
             ]

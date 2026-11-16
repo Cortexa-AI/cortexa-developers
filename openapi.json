@@ -2449,6 +2449,18 @@
             }
           },
           {
+            "name": "stream",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Stream generated text. Set false for a JSON job receipt.",
+              "default": true,
+              "title": "Stream"
+            },
+            "description": "Stream generated text. Set false for a JSON job receipt."
+          },
+          {
             "name": "Idempotency-Key",
             "in": "header",
             "required": true,
@@ -2457,6 +2469,22 @@
               "minLength": 1,
               "maxLength": 128,
               "title": "Idempotency-Key"
+            }
+          },
+          {
+            "name": "Last-Event-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Last-Event-Id"
             }
           }
         ],
@@ -2471,15 +2499,26 @@
           }
         },
         "responses": {
+          "200": {
+            "description": "Server-sent events with generated text and the saved document. Use stream=false for a 202 JSON receipt.",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "event: output.delta\ndata: {\"document_id\":\"document_example\",\"data\":\"Consultation text\"}\n\n"
+              }
+            }
+          },
           "202": {
-            "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GenerationRead"
                 }
               }
-            }
+            },
+            "description": "Accepted"
           },
           "422": {
             "description": "Business rule violation",
@@ -3578,6 +3617,18 @@
             }
           },
           {
+            "name": "stream",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Stream generated text. Set false for a JSON job receipt.",
+              "default": true,
+              "title": "Stream"
+            },
+            "description": "Stream generated text. Set false for a JSON job receipt."
+          },
+          {
             "name": "Idempotency-Key",
             "in": "header",
             "required": true,
@@ -3586,6 +3637,22 @@
               "minLength": 1,
               "maxLength": 128,
               "title": "Idempotency-Key"
+            }
+          },
+          {
+            "name": "Last-Event-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Last-Event-Id"
             }
           }
         ],
@@ -3600,15 +3667,26 @@
           }
         },
         "responses": {
+          "200": {
+            "description": "Server-sent events with generated text and the saved document. Use stream=false for a 202 JSON receipt.",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "event: output.delta\ndata: {\"document_id\":\"document_example\",\"data\":\"Consultation text\"}\n\n"
+              }
+            }
+          },
           "202": {
-            "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/JobReceipt"
                 }
               }
-            }
+            },
+            "description": "Accepted"
           },
           "422": {
             "description": "Business rule violation",

@@ -35,8 +35,9 @@ environments.
     integration will offer. Check the actual outputs with your clinical testers.
   </Step>
   <Step title="Handle processing and edits">
-    Show pending and failed jobs clearly. Keep operation keys stable during
-    retries. Handle document version conflicts without discarding reviewed text.
+    Display streamed text and distinguish completion from disconnects or failures.
+    Exercise reconnects with the same operation key. Show other pending jobs
+    clearly and handle version conflicts without discarding reviewed text.
   </Step>
   <Step title="Save to the intended encounter">
     Let the clinician review the result. Verify that your EHR write-back uses
@@ -44,6 +45,16 @@ environments.
     duplicate records on retries.
   </Step>
 </Steps>
+
+## Deliver streaming responses
+
+If your backend proxies generation to a client, forward SSE frames as they arrive.
+Disable response buffering or caching on that route, allow a connection long
+enough for generation, and preserve event IDs. Verify actual incremental text
+through your deployed proxy, including a disconnect and reconnect.
+
+Use `stream=false` if your integration intentionally consumes JSON receipts.
+See [Streaming](/streaming) for the two modes and event handling.
 
 ## Operate the integration
 
