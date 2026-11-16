@@ -3,8 +3,7 @@ title: "API capabilities"
 description: "See what the public Scribe API supports and which parts your integration provides."
 ---
 
-The current public contract contains **48 operations** under
-`/v2/scribe/open-api`. The API reference tab lists each operation's request and
+The public contract is served under `/v2/scribe/open-api`. The API reference tab lists each operation's request and
 response schemas. These guides explain how to combine them into a clinical workflow.
 
 ## Supported workflows
@@ -13,14 +12,19 @@ response schemas. These guides explain how to combine them into a clinical workf
 | --- | --- | --- |
 | Authentication | Exchange a clinician authorization code or valid grant for a JWT; retrieve public keys | [Authentication](/authentication) |
 | Patients | Create, list, retrieve, update, delete, batch delete, and link/unlink sessions | [Patients](/patients) |
-| Sessions | Create, list, retrieve, update, and delete consultations | [Sessions](/sessions) |
-| Clinical context | Session background text; upload, list, and detach context documents | [Context](/context) |
+| Sessions | Create, list, retrieve, update, delete, and create/resume with the patient | [Session workflow](/session-workflow) |
+| Clinical context | Background text, attachments, and versioned links to previous consult notes | [Context](/context) |
 | Transcript text | Append ordered batches and retrieve the combined transcript | [Transcripts](/transcripts) |
 | Complete audio | Create an upload, obtain signed part URLs, complete, and process the recording | [Recordings](/recordings) |
 | Audio during a consultation | Start a recording, transcribe indexed chunks, and finish the assembled transcript | [Segmented transcription](/segmented-transcription) |
 | Templates | List all or category-specific templates; retrieve detail | [Templates](/templates) |
 | Consult notes | Stream generated text and the saved document; edit the latest completed note | [Notes](/notes) |
 | Documents | Create, list, retrieve, edit, delete, and generate/regenerate content | [Documents](/documents) |
+| Structured forms | Typed choices, text, dates, nested and repeating questions from a saved note | [Structured responses](/structured-responses) |
+| EHR fields | Convert note sections and save versioned heading mappings | [Sectional notes](/sectional-notes) |
+| Client integration | Hosted JavaScript SDK and embeddable recording/review Widget | [SDK](/javascript-sdk), [Widget](/widget) |
+| External tools | Reviewed REST/MCP manifests, clinician Bearer/OAuth connections, and approved writes | [Connectors](/connectors) |
+| Usage | Application-wide or grant-scoped daily counts and audio minutes | [Usage](/usage) |
 | Custom prompts | Create a private prompt-based template and generate a document | [Custom templates](/custom-templates) |
 | Ask AI | Submit a session question and retrieve the answer | [Ask AI](/ask-ai) |
 | Coding | Start/retrieve code suggestions; request US outpatient MDM-based E/M assessment | [Clinical coding](/clinical-coding) |
@@ -29,8 +33,9 @@ response schemas. These guides explain how to combine them into a clinical workf
 
 ## Integration model
 
-The API is designed for backend integration. Your application handles clinician
-consent coordination, audio capture, the review UI, and saving results in your EHR.
+Your backend coordinates clinician consent and keeps the application API key.
+Use the hosted Widget for capture and review, or build your own UI with the SDK.
+Your application controls the EHR destination and write workflow.
 A grant binds your application to one clinician and workspace, and isolates its
 patients and sessions. See [the complete flow](/integration-flow).
 
@@ -40,26 +45,17 @@ patients and sessions. See [the complete flow](/integration-flow).
 | Call clinical endpoints | Partner JWT from the API-key/token exchange |
 | Know when processing finishes | Receive streamed note/document completion; poll jobs for other background work |
 | Update clinical text | Versioned document edits using `base_version` |
-| Map output into EHR fields | Your integration maps returned content to your own fields |
-| Retrieve patient history | Submit the relevant authorized context explicitly |
+| Map output into EHR fields | Store template or note-section field mappings |
+| Retrieve patient history | Explicitly link completed notes from the same patient and grant |
 | Configure regional hosting and supported languages | Confirm with Cortexa for your environment |
 
 ## Public API boundaries
 
-The current contract does not expose an embedded widget/client SDK, a general
-third-party REST/MCP connector registration program, completion webhooks, a
-partner usage-analytics API, or vendor-specific FHIR/HL7 adapters.
-
-It also does not expose a combined patient-and-session setup call, a sectional-note
-conversion API with stored EHR-field mappings, a previous-session context-linking
-endpoint, or PDF/DOCX document downloads. Internal product functionality does not
-automatically make these operations available to partner JWTs.
-
-Custom template generation accepts a name and prompt; it does not accept an
-arbitrary output JSON schema. Audio during a consultation uses HTTP chunks rather
-than a public WebSocket connection. Consult-note and document-content generation
-use [SSE streaming](/streaming) by default, with `stream=false` for JSON job receipts.
-Other processing endpoints retain their documented response types.
+The public contract does not expose completion webhooks, vendor-specific FHIR/HL7
+adapters, or PDF/DOCX downloads. A structured form follows the documented question
+schema, not arbitrary JSON Schema. Audio uses complete HTTP segments; consult-note
+and document-content generation use [SSE streaming](/streaming) by default, with
+`stream=false` for JSON receipts. Other endpoints retain their documented response types.
 
 ## Availability and permissions
 

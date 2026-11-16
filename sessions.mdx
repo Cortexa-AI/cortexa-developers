@@ -64,8 +64,8 @@ curl --get "$CORTEXA_API_BASE/sessions" \
 ```
 
 The response uses the standard [paginated list](/errors#pagination).
-Create the patient and session in separate requests; the API does not expose a
-combined patient-and-session setup endpoint.
+Use the [combined workflow](/session-workflow) to create or resume the patient
+and session together, or keep the separate creation calls.
 
 ## Update session details
 

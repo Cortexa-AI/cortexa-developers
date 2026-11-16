@@ -41,7 +41,8 @@ sidebarTitle: "FAQ"
   <Accordion title="Can I integrate with a web, desktop, or mobile application?">
     Your application's backend can call the HTTP API. Build the recording and
     review interface appropriate to your client, and keep the application API
-    key on the backend. The API does not provide a client SDK or embedded widget.
+    key on the backend. Use the [JavaScript SDK](/javascript-sdk) or the
+    [embedded Widget](/widget) for capture, streamed generation, and review.
   </Accordion>
   <Accordion title="Do I need audio to try note generation?">
     No. Start with the synthetic text example in [Quickstart](/quickstart).
@@ -66,13 +67,14 @@ sidebarTitle: "FAQ"
   </Accordion>
   <Accordion title="Will Cortexa automatically save a note in my EHR?">
     Your integration retrieves the result, lets the clinician review it, and
-    writes it through your EHR's own API. Updating a Cortexa document stores
+    writes it through your EHR's API or a [reviewed connector](/connectors). Updating a Cortexa document stores
     the edit in Cortexa; it is not an external EHR write-back operation.
   </Accordion>
   <Accordion title="Can I request an arbitrary JSON output schema?">
     The [custom template endpoint](/custom-templates) accepts a name, prompt,
     and optional output language, then generates a document. It does not accept
-    a caller-defined JSON schema or guarantee a fixed JSON form response.
+    a caller-defined JSON schema. Use [structured responses](/structured-responses)
+    for typed questions, options, dates, repetition, and nested answers.
   </Accordion>
   <Accordion title="Which languages and deployment regions can I offer?">
     Session requests accept input languages and an output language. Confirm the

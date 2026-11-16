@@ -1,0 +1,183 @@
+---
+title: "Connect external REST and MCP tools"
+description: "Register a reviewed connector, connect each clinician, and run reads or approved writes."
+---
+
+Connectors let Cortexa call your EHR or another tool service. Your service exposes
+REST endpoints or an MCP Streamable HTTP endpoint. Cortexa stores a reviewed tool
+manifest and an encrypted connection for each clinician and workspace.
+
+<Steps>
+  <Step title="Describe the service">
+    Register its endpoint, authentication method, and complete tool definitions
+    with your application API key.
+  </Step>
+  <Step title="Review the manifest">
+    Arrange review with Cortexa. Review covers the endpoint, schemas, tool
+    descriptions, and read/write classification. Registration alone does not enable calls.
+  </Step>
+  <Step title="Connect the clinician">
+    Use that clinician's Partner JWT to save a practice Bearer credential or
+    complete OAuth authorization. Each connection belongs to that clinician and workspace.
+  </Step>
+  <Step title="Call and review">
+    Reads execute immediately. Writes first produce a reviewable request; an
+    authorized clinician must approve the exact destination and arguments.
+  </Step>
+</Steps>
+
+## Register a REST connector
+
+`POST /connectors` uses `Cortexa-Api-Key`:
+
+```json
+{
+  "name":"Synthetic EHR",
+  "description":"Look up a synthetic patient and save reviewed notes.",
+  "transport":"rest",
+  "endpoint":"https://ehr.example/cortexa",
+  "auth":"bearer",
+  "profile":"tools",
+  "tools":[
+    {"name":"get_patient","description":"Read a patient by external ID.",
+     "write":false,"method":"GET","path":"/patient",
+     "input_schema":{"type":"object","properties":{"patient_id":{"type":"string"}},"required":["patient_id"],"additionalProperties":false}},
+    {"name":"push_note","description":"Save the clinician-reviewed note.",
+     "write":true,"method":"POST","path":"/note",
+     "input_schema":{"type":"object","properties":{"patient_id":{"type":"string"},"text":{"type":"string"}},"required":["patient_id","text"],"additionalProperties":false}}
+  ]
+}
+```
+
+The response includes `id`, `manifest_hash`, and `approved: false`. Use
+`GET /connectors` to list your application's registrations. To replace a definition,
+use `PUT /connectors/{connector_id}` with the full manifest. Every replacement
+requires another review and a new clinician connection, including description-only changes.
+
+## Implement the REST contract
+
+The endpoint and each tool's fixed `path` are joined to form the URL. GET arguments
+become query parameters; other methods receive a JSON body. Every request uses
+`Authorization: Bearer <connected credential>`. Write calls include a stable
+`Idempotency-Key`; your service should persist and deduplicate it.
+
+Tool names must be unique. Define up to 100 tools with valid JSON input schemas;
+only local `$ref` references are supported. Classify side effects as `write: true`,
+including POST tools that change data. PUT, PATCH, DELETE, and `push_note` require
+write classification. Return JSON and keep responses within 2 MB. The transport uses a 45-second
+network timeout. An optional `output_schema` validates REST response data; a mismatch
+returns `CONNECTOR_OUTPUT_INVALID`. REST redirects are not followed.
+
+Endpoints must use public HTTPS. Private, loopback, and link-local destinations
+are rejected, and outbound requests pin a validated public address. This means a
+local reference server needs a public HTTPS deployment before partner integration.
+
+## Use the EHR profile
+
+Set `profile: "ehr"` to require these six named tools:
+
+| Tool | Intended purpose |
+| --- | --- |
+| `info` | Describe the connected practice and supported integration |
+| `list_practitioners` | List practitioners available to the connection |
+| `list_appointments` | Find the clinician's scheduled encounters |
+| `search_patients` | Find a patient using authorized search terms |
+| `get_patient` | Retrieve the selected patient's record |
+| `push_note` | Write the reviewed note; always a write tool |
+
+Add optional tools for context retrieval or document upload. The manifest declares
+your request and response schemas; Cortexa does not assume vendor-specific FHIR,
+HL7, patient identifiers, or billing semantics.
+
+## Use MCP Streamable HTTP
+
+Set `transport: "mcp"` and `endpoint` to the MCP URL. Populate each tool's `name`,
+`description`, `input_schema`, optional `output_schema`, and `annotations` from
+`tools/list`, then explicitly classify `write`. REST `method` and `path` are ignored.
+The connector supports Streamable HTTP, not stdio or legacy HTTP+SSE transport.
+
+Cortexa initializes the MCP session and retrieves all tool pages before each call.
+The live names, descriptions, schemas, and annotations must exactly match the
+reviewed catalog. Added or changed tools produce `409 CONNECTOR_SCHEMA_CHANGED`;
+submit the updated manifest for review and reconnect. No new live tool is implicitly trusted.
+MCP writes include the stable call ID in request `_meta.idempotencyKey`; implement
+deduplication on your server if it supports this extension.
+
+## Connect with a Bearer credential
+
+```bash
+curl --request PUT "$CORTEXA_API_BASE/connectors/$CONNECTOR_ID/connection" \
+  --header "Authorization: Bearer $CORTEXA_JWT" \
+  --header 'Content-Type: application/json' \
+  --data '{"token":"synthetic-practice-token"}'
+```
+
+Use the real practice credential only in your controlled integration environment.
+The response exposes the connection ID and generation, never the credential.
+`DELETE /connectors/{connector_id}/connection` revokes this clinician's connection.
+Reconnecting changes its generation and invalidates pending write approvals.
+
+## Connect with OAuth
+
+Set `auth: "oauth2"` and include:
+
+```json
+{
+  "authorization_url":"https://ehr.example/oauth/authorize",
+  "token_url":"https://ehr.example/oauth/token",
+  "client_id":"your_registered_public_client",
+  "redirect_uri":"https://partner.example/cortexa-callback",
+  "scopes":["patient.read","note.write"]
+}
+```
+
+This supports pre-registered public OAuth clients using authorization code plus
+PKCE S256, with refresh tokens. Confidential-client secrets and dynamic client
+registration are not part of this contract.
+
+1. Call `POST /connectors/{connector_id}/oauth/authorize` with the clinician JWT.
+2. Open the returned `authorization_url` for the clinician to sign in and consent.
+3. At your registered callback, send the returned `code` and `state` to
+   `POST /connectors/{connector_id}/oauth/complete` with the same clinician grant.
+
+The state is single-use, expires after ten minutes, and binds the clinician,
+workspace, connector, and reviewed manifest. Cortexa exchanges the code, stores
+credentials encrypted, and refreshes access tokens when needed. Reauthorize if
+refresh fails or the provider does not supply a refresh token.
+
+## Discover and call tools
+
+`GET /connectors/tools` returns active connections for the JWT's application,
+clinician, and workspace. Call a tool with:
+
+```bash
+curl --request POST "$CORTEXA_API_BASE/connectors/$CONNECTOR_ID/calls" \
+  --header "Authorization: Bearer $CORTEXA_JWT" \
+  --header 'Idempotency-Key: synthetic-visit-001-write' \
+  --header 'Content-Type: application/json' \
+  --data '{"tool_name":"push_note","arguments":{"patient_id":"synthetic-001","text":"Clinician-reviewed synthetic note."}}'
+```
+
+A read returns `status: "completed"` and the provider result (`result.data` for
+REST, or the MCP call-result structure for MCP). A write returns
+`status: "needs_approval"`, `call_id`, the exact arguments, and the connection and
+manifest versions. The Partner JWT cannot approve that write by setting an
+`approved` flag. The signed-in clinician approval surface uses Cortexa's separate
+clinician authorization; arrange that surface during integration onboarding.
+
+Cortexa Agent can also discover connected tools and propose writes through its
+existing approval UI. External writes always require review, including in automatic
+Agent mode. Only the connected clinician can use their tools in that workspace.
+External descriptions and results remain untrusted data, not instructions or authorization.
+
+## Recover a write safely
+
+Read `GET /connector-calls/{call_id}` after approval or a lost response. Possible
+statuses are `needs_approval`, `rejected`, `executing`, `completed`, `failed`, and
+`unknown`. A claim is committed before sending the external write. A server crash
+can leave `executing`; a transport timeout can leave `unknown`.
+
+Do not create a fresh request to repeat an uncertain write. Reconcile the call ID
+with your EHR first. Reusing the same request ID returns its receipt; changing the
+arguments or connection with that ID returns `409`. Updating a manifest or
+reconnecting requires a newly reviewed request.

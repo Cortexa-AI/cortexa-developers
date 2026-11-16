@@ -16,8 +16,9 @@ one clinician seeing one synthetic patient, Alex Example.
 | Your backend | Keeps the API key, exchanges tokens, calls the API, and saves reviewed output to your EHR |
 | Cortexa | Checks authorization, processes audio and context, generates output, and exposes results |
 
-The API does not supply an embedded recording interface or write directly into
-your EHR. Your application implements those parts of the workflow.
+Use the [Widget](/widget) for embedded recording and review, or build your own
+interface with the [SDK](/javascript-sdk). For EHR write-back, use your adapter or
+a [reviewed connector](/connectors) with clinician approval.
 
 ## Connect a clinician
 

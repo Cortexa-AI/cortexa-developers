@@ -1,0 +1,93 @@
+---
+title: "Embed the clinical Widget"
+description: "Add recording, streamed note generation, clinician editing, and result callbacks to your application."
+---
+
+The Widget provides the consultation UI inside an iframe: record audio, paste a
+transcript, upload a complete audio segment, select a template, stream a note,
+edit it, and return the reviewed result to your application.
+
+Before embedding it, obtain a partner application, an authorized clinician grant,
+and a backend route that returns the clinician's Partner JWT. The parent page's
+origin must match your registered application's callback origin. Agree the correct
+callback during onboarding; arbitrary parent origins cannot embed the Widget.
+
+## Load and mount
+
+```html
+<div id="cortexa-scribe"></div>
+<script src="https://sandbox.api.cortexanote.com/v2/scribe/open-api/assets/widget.js"></script>
+<script>
+  CortexaWidget.mount({
+    target: '#cortexa-scribe',
+    applicationId: 'your_application_id',
+    getToken: async () => {
+      const response = await fetch('/api/cortexa/clinician-token', { method: 'POST' });
+      if (!response.ok) throw new Error('Sign in to continue');
+      return (await response.json()).access_token;
+    },
+    workflow: {
+      patient: { external_patient_id: 'synthetic-patient-001', name: 'Synthetic Patient' },
+      session: { external_session_id: 'synthetic-visit-001' }
+    },
+    onSessionStarted: ({ session_id }) => console.log('Session opened', session_id),
+    onPushData: ({ session_id, document }) => {
+      // Pass the reviewed document to your application workflow.
+      showReviewedNote(session_id, document);
+    },
+    onError: ({ message }) => showIntegrationError(message)
+  }).then(widget => { window.scribeWidget = widget; });
+</script>
+```
+
+Replace the environment, application ID, backend token route, and callback functions.
+Use `sessionId` instead of `workflow` to open an existing grant-owned session.
+A repeated workflow external ID resumes the same consultation.
+
+## What each side handles
+
+| Widget | Your application |
+| --- | --- |
+| Captures microphone input with browser permission | Obtains and refreshes the authorized clinician JWT |
+| Uploads independent audio segments and finishes the transcript | Provides the correct patient and encounter identity |
+| Streams the note and saves versioned edits | Receives `onPushData` and applies your EHR workflow |
+| Emits a result only after the clinician selects Return reviewed note | Handles external EHR writes or [connector approval](/connectors) |
+
+The token is sent through an origin-checked `postMessage` handshake, not in the
+iframe URL. The Widget checks both the parent origin and message source. The
+application API key stays on your backend.
+
+## Recording and recovery
+
+Serve the parent page over HTTPS and allow microphone use in your site's
+Permissions Policy. The loader gives the iframe `allow="microphone"`; the browser
+still asks the clinician for microphone permission. Supported browsers need
+`MediaRecorder` and `getUserMedia`; otherwise use pasted text or file upload.
+
+Recording uses independently decodable segments of approximately 30 seconds.
+Each segment has its own index. Stopping the recorder finalizes and assembles the
+transcript before generation. The file option accepts a standalone audio segment
+of at most six minutes and requires its duration in seconds.
+
+If audio upload fails, keep the page open, stop recording, and select **Retry audio
+upload**. Unsaved audio stays in that iframe's memory; reloading or destroying it
+can lose pending segments. If generation disconnects, **Resume generation** reuses
+the same operation key and event cursor. A version conflict while saving edits
+requires reviewing the current saved note before overwriting it.
+
+## Control the Widget
+
+The mount promise returns these methods:
+
+```javascript
+scribeWidget.open();
+scribeWidget.close();       // hides the iframe and stops microphone capture
+scribeWidget.setToken(newPartnerJwt);
+scribeWidget.destroy();     // removes the iframe and its listeners
+```
+
+`onSessionStarted` fires after session setup. `onPushData` includes the saved
+Cortexa document and session ID; it does not itself write into your EHR.
+`onError` reports an actionable message and an HTTP status when available.
+`getToken` handles token refresh; alternatively supply `token` and update it with
+`setToken` before it expires.

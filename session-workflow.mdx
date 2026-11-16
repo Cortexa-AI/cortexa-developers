@@ -1,0 +1,52 @@
+---
+title: "Create or resume a consultation"
+description: "Set up the patient and session in one idempotent request."
+---
+
+Use `POST /workflows/session` when the clinician opens an encounter in your EHR.
+The request matches the patient's external ID, updates the supplied patient fields,
+and creates or resumes the encounter's session within the current grant.
+You need a Partner JWT with `scribe:write`.
+
+## Open the encounter
+
+```bash
+curl --request POST "$CORTEXA_API_BASE/workflows/session" \
+  --header "Authorization: Bearer $CORTEXA_JWT" \
+  --header 'Content-Type: application/json' \
+  --header 'Idempotency-Key: synthetic-visit-001-open' \
+  --data '{
+    "patient": {"external_patient_id":"synthetic-patient-001","name":"Synthetic Patient"},
+    "session": {"external_session_id":"synthetic-visit-001","title":"Follow-up"}
+  }'
+```
+
+The `200` response contains `patient`, `session`, and `resumed`. Store the returned
+`patient.id` and `session.id`. `resumed: false` means this request created the
+session; `true` means it found an existing one.
+
+| Field | Meaning |
+| --- | --- |
+| `patient` | The same body as [patient creation](/patients). The external ID and name are required. Omitted optional fields keep their existing values. |
+| `session` | The same body as [session creation](/sessions). `external_session_id` is required. |
+| `session_id` | Optional explicit Cortexa session to resume. Its external ID and patient must match. |
+| `Idempotency-Key` | A stable key for this opening action. Reuse it when retrying the identical request. |
+
+## Resume without moving records
+
+The workflow will not move an existing encounter to another patient. A conflicting
+patient or external session ID returns `409`; no partial patient changes are saved.
+External IDs are scoped to the grant, so use a stable grant for each clinician and workspace.
+
+On resume, the workflow updates supplied **patient** fields, but preserves the
+existing **session** settings. Use `PATCH /sessions/{session_id}` for deliberate
+changes to its title, background context, or output language.
+
+An idempotent replay returns the original response, including its original
+`resumed` value. Use a new key for a new opening action after changing the input.
+
+## Continue the consultation
+
+Add [history](/context), [transcript text](/transcripts), or [audio](/segmented-transcription),
+then [stream a note](/streaming). The [JavaScript SDK](/javascript-sdk) wraps this call
+as `client.workflow(...)`; the [Widget](/widget) can run it during initialization.

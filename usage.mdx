@@ -1,0 +1,60 @@
+---
+title: "Query partner usage"
+description: "Read daily consultation, document, audio, and task counts for your application or one grant."
+---
+
+`POST /usage/query` returns a UTC daily report. It contains counts and durations,
+not clinical text. `scribe:read` is required.
+
+## Choose the credential scope
+
+| Credential | Returned scope |
+| --- | --- |
+| `Cortexa-Api-Key` | Grants belonging to that partner application, including historical usage for revoked grants |
+| `Authorization: Bearer <Partner JWT>` | Only the JWT's active clinician/workspace grant |
+
+Keep API keys on your backend. If both headers are present, the JWT determines the
+scope and must be valid. A normal clinician login token is not accepted here.
+
+## Request a report
+
+```bash
+curl --request POST "$CORTEXA_API_BASE/usage/query" \
+  --header "Cortexa-Api-Key: $CORTEXA_API_KEY" \
+  --header 'Content-Type: application/json' \
+  --data '{"name":"user_daily_report","since":"2026-11-01","until":"2026-11-16","limit":100,"offset":0}'
+```
+
+`since` and `until` are inclusive UTC dates. The default is the last 30 UTC dates,
+including today. A request can cover at most 366 dates. `limit` defaults to 100
+and can be at most 2,000. Follow `next_offset` while `has_more` is true, keeping
+the same dates. Rows are ordered by date and grant ID; days without activity are omitted.
+
+## Interpret the metrics
+
+Each row identifies `report_date`, `grant_id`, `external_user_id`, and `workspace_id`.
+
+| Metric | Definition |
+| --- | --- |
+| `sessions` | Grant-owned consultations created that day |
+| `consult_notes` | Currently ready output records marked as consult notes, grouped by creation date |
+| `documents` | Other currently ready outputs in grant-owned sessions, grouped by creation date |
+| `transcription_minutes` | Stored duration of completed/stopped non-dictation recordings in grant-owned sessions |
+| `dictation_minutes` | The corresponding duration for dictation-mode recordings |
+| `structured_responses` | Persisted structured form responses created that day |
+| `tasks` | Tasks created in grant-owned sessions that day |
+
+Segmented audio counts the parent recording once; its individual chunks are
+excluded. Text-only transcripts contribute no audio minutes. Minutes are stored
+recording durations, not microphone-on wall time or a pricing calculation.
+
+This is an **activity report**, not an immutable billing ledger. Regenerating the
+same output does not create a new counted document. An output's later status
+change can affect an earlier day's ready-output count. Soft-deleted records remain
+countable; permanent retention deletion can remove them. Activity in the same
+workspace outside grant-owned sessions is excluded, but clinician edits and
+outputs inside a grant-owned session contribute to that session's activity.
+
+Use a fixed date range for exports. Application rate limits apply to usage queries
+as well as clinical calls. Invalid dates/ranges return `422`; expired or revoked
+JWTs return `401`.
