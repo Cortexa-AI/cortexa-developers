@@ -34,35 +34,60 @@ export CORTEXA_API_BASE='https://sandbox.api.cortexanote.com/v2/scribe/open-api'
 
 ## Obtain clinician authorization
 
+Your integration must provide **`external_user_id`**, the clinician's stable user ID in **your system**, such as `doctor_123`. Your application adds it to the authorization link automatically; the clinician does not type it into the Cortexa consent page. It is required and must contain 1–255 characters.
+
+For example, when a clinician with ID `doctor_123` in your EHR signs in to Cortexa and selects a workspace, Cortexa stores a grant linking your application, `doctor_123`, the signed-in Cortexa user, and that workspace. Reuse the same external ID when that clinician reconnects. Cortexa does not generate this ID or substitute the clinician's Cortexa user ID.
+
+### Build the authorization link
+
+Send the clinician to `/scribe/authorize` on the Cortexa app origin provided during onboarding. Use the app origin for the same environment as your API credentials, not the sandbox API origin.
+
+Include all five query parameters:
+
+| Parameter | Value to supply |
+| --- | --- |
+| `application_id` | The partner application ID issued by Cortexa. It identifies your application and its registered callback and allowed scopes. |
+| `external_user_id` | The signed-in clinician's stable ID in your system, for example `doctor_123`. Required; 1–255 characters. |
+| `redirect_uri` | Your application's registered HTTPS callback URI, exactly as registered. URL-encode it in the link. |
+| `state` | A random value bound to the clinician's current login in your application. Use 16–512 characters, save it before redirecting, and verify it on callback. |
+| `scope` | The requested permissions as a space-separated string, URL-encoded in the link. Request only scopes allowed for your application. |
+
+The clinician selects the Cortexa workspace on the consent page. You do not need to know their Cortexa user ID or workspace ID to build this link. Keep your API key on your backend; do not include it in the link.
+
+Example path and query, using synthetic values:
+
+```text
+/scribe/authorize?application_id=app_example&external_user_id=doctor_123&redirect_uri=https%3A%2F%2Fehr.example%2Fcortexa%2Fcallback&state=sample-random-state-7f2c9a46&scope=scribe%3Aread%20scribe%3Awrite%20scribe%3Agenerate
+```
+
+Prepend your assigned Cortexa app origin. Replace `app_example`, `doctor_123`, and the callback with your actual values, and generate a fresh `state` for each authorization attempt.
+
+### Complete consent and handle the callback
+
 <Steps>
-  <Step title="Start the agreed consent flow">
-    Generate a random `state` bound to the clinician's current login in your
-    application. Provide your application ID, external clinician ID, exact
-    callback URI, requested scopes, and workspace through the consent flow
-    agreed with Cortexa.
+  <Step title="Open the authorization link">
+    Your application reads the clinician ID from its signed-in account and supplies it as `external_user_id`, together with the other required query parameters above.
   </Step>
   <Step title="Let the clinician authorize the workspace">
-    The clinician signs in to Cortexa and reviews the application and permissions.
-    The authorization binds your application and external clinician ID to that
-    Cortexa user and workspace.
+    The clinician signs in to Cortexa, selects a workspace, and reviews the requested permissions. After they allow access, Cortexa stores the authorization linking your application and external clinician ID to that Cortexa user and workspace.
   </Step>
   <Step title="Handle the callback">
-    Cortexa returns a `redirect_url` containing `code` and `state` for the
-    registered callback. Validate `state` against the saved value, then exchange
-    the code from your backend within 60 seconds. Each code can be used once.
+    Cortexa redirects the browser to your registered callback with `code` and `state`. Validate `state` against the saved value, then exchange the code from your backend within 60 seconds. Each code can be used once.
   </Step>
 </Steps>
 
-The clinician-facing backend contract is `POST /v2/scribe/api-authorizations`,
-authenticated with the clinician's normal Cortexa login token. It is outside the
-partner Open API namespace and is not served on the sandbox API hostname.
-Coordinate the consent UI and its origin during onboarding; the authorization
-endpoint alone is not a hosted sign-in page.
+The consent page submits `POST /v2/scribe/api-authorizations` using the clinician's Cortexa login token. Its JSON body contains `application_id`, `external_user_id`, the selected `workspace_id`, `redirect_uri`, `state`, and a `scopes` array. The link uses singular `scope`; the backend request uses plural `scopes`. This endpoint is outside the partner Open API namespace and is not served on the sandbox API hostname.
 
-The consent request identifies `application_id`, `workspace_id`,
-`external_user_id`, `redirect_uri`, `state`, and `scopes`. The callback must match
-exactly. An external clinician ID already linked to another Cortexa user cannot
-be rebound through a new authorization request.
+For the same application and workspace, reconnecting the same external clinician ID updates the existing grant. If that combination is already linked to a different Cortexa user, authorization fails with `409 EXTERNAL_USER_ALREADY_LINKED`.
+
+### If the external clinician ID is missing
+
+- **In the authorization link:** omitting `external_user_id` or sending an empty value displays “This authorization link is incomplete.” The clinician cannot continue with authorization.
+- **In a direct authorization API request:** omitting `external_user_id` or sending an empty string returns `422` validation failure. No grant or authorization code is created by that request.
+
+Fix the link in your application and send the clinician through consent again. An API key alone cannot replace this step.
+
+After the first token exchange, save the returned `grant_id` alongside the clinician's ID in your system. Token exchange and clinical API requests do **not** require you to send `external_user_id` again: use the code for the first exchange, the saved grant ID for later exchanges, and the Partner JWT for clinical requests.
 
 ## Exchange the code
 
@@ -159,7 +184,8 @@ the relevant environment.
 | `401 INVALID_GRANT` | Check the grant belongs to this application and remains authorized |
 | `401 INVALID_ACCESS_TOKEN` | Use the Partner JWT; renew if expired and verify the grant remains valid |
 | `403 INSUFFICIENT_SCOPE` | Obtain authorization/application scopes required by the operation |
-| `409 EXTERNAL_USER_ALREADY_LINKED` | Check your external clinician identity mapping |
+| Incomplete authorization link, or `422` on the consent request | Supply a non-empty `external_user_id` from the clinician account in your system and all other required consent fields |
+| `409 EXTERNAL_USER_ALREADY_LINKED` | Check the external clinician identity mapping for this application and workspace |
 | `422` on token exchange | Send exactly one of `authorization_code` or `grant_id` |
 
 Continue with [your first note](/quickstart).
