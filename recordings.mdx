@@ -4,12 +4,11 @@ description: "Upload audio to signed storage URLs, complete the recording, and r
 sidebarTitle: "Recording uploads"
 ---
 
-Use this workflow when you already have a complete consultation recording. For
-audio arriving during the consultation, use [segmented transcription](/segmented-transcription).
+Upload a complete recording, then retrieve its transcript. For audio captured
+during a consultation, use [segmented transcription](/segmented-transcription).
 
-You need an existing session, `scribe:write` for the upload workflow, and
-`scribe:read` to poll the transcription job and retrieve its result. Use a local
-synthetic audio file when testing.
+**Before you begin:** create a session and prepare a synthetic audio file.
+Use `scribe:write` to upload and `scribe:read` to retrieve the result.
 
 ## Upload sequence
 
@@ -43,7 +42,7 @@ curl --request POST "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/recording-up
 
 Replace the illustrative file size with the actual number of bytes in your file.
 
-| Field | Required | Meaning |
+| Field | Required | Description |
 | --- | --- | --- |
 | `file_name` | Yes | Original filename; 1–255 characters |
 | `mime_type` | No | Audio MIME type; defaults to `audio/wav` |
@@ -79,12 +78,9 @@ curl --fail-with-body --request PUT "$CORTEXA_UPLOAD_URL" \
   --dump-header ./synthetic-upload-response.headers
 ```
 
-Read the storage response's `ETag` from the saved headers and retain it for the
-completion request. The file with response headers is a temporary integration
-artifact; keep signed URLs and credentials out of shared logs.
-
-Send the Partner JWT only to Cortexa API endpoints. The signed storage URL carries
-its own authorization, so do not add the Partner JWT to the storage PUT.
+Save the storage response's `ETag` for completion. Use only the returned storage
+headers on this PUT; the signed URL supplies authorization. Keep the Partner JWT
+on Cortexa API requests.
 
 For multiple parts, request and upload each consecutive part, retaining every
 part's number and ETag.
@@ -113,9 +109,8 @@ Poll the returned transcription job until it succeeds, then read
 `GET /sessions/{session_id}/transcript`. Submit the resulting session to
 [consult-note generation](/notes).
 
-The completion request starts the transcription workflow; you do not trigger
-transcription by repeatedly fetching the transcript. The API does not expose a
-single multipart `/upload-audio` endpoint for complete recordings.
+Completing the upload starts transcription. Fetching the transcript only reads
+the current result.
 
 ## Retry an interrupted upload
 

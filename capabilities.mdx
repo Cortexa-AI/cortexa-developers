@@ -3,8 +3,8 @@ title: "API capabilities"
 description: "See what the public Scribe API supports and which parts your integration provides."
 ---
 
-The public contract is served under `/v2/scribe/open-api`. The API reference tab lists each operation's request and
-response schemas. These guides explain how to combine them into a clinical workflow.
+Find a guide for each API capability below. Open the **API reference** tab for
+complete request and response schemas.
 
 ## Supported workflows
 
@@ -31,25 +31,7 @@ response schemas. These guides explain how to combine them into a clinical workf
 | Jobs | Retrieve processing status and failure codes | [Jobs](/jobs) |
 | Workspace directory | Read the authorized workspace and its active members | [Directory](/workspace-directory) |
 
-## Integration model
-
-Your backend coordinates clinician consent and keeps the application API key.
-Use the hosted Widget for capture and review, or build your own UI with the SDK.
-Your application controls the EHR destination and write workflow.
-A grant binds your application to one clinician and workspace, and isolates its
-patients and sessions. See [the complete flow](/integration-flow).
-
-| Integration need | Current approach |
-| --- | --- |
-| Sign in and authorize | Cortexa clinician login plus the consent flow agreed during onboarding |
-| Call clinical endpoints | Partner JWT from the API-key/token exchange |
-| Know when processing finishes | Receive streamed note/document completion; poll jobs for other background work |
-| Update clinical text | Versioned document edits using `base_version` |
-| Map output into EHR fields | Store template or note-section field mappings |
-| Retrieve patient history | Explicitly link completed notes from the same patient and grant |
-| Configure regional hosting and supported languages | Confirm with Cortexa for your environment |
-
-## Public API boundaries
+## Response formats and limits
 
 The public contract does not expose completion webhooks, vendor-specific FHIR/HL7
 adapters, or PDF/DOCX downloads. A structured form follows the documented question
@@ -59,10 +41,6 @@ and document-content generation use [SSE streaming](/streaming) by default, with
 
 ## Availability and permissions
 
-An implemented operation still depends on application scopes, clinician workspace
-permissions, plan entitlements, quotas, and the configured provider. Coding systems
-and language support must be confirmed for the integration's environment.
-
-The sandbox hostname exposes the public contract; it is not a clinician login
-site. Agree production access and acceptance with your integration contact using
-[Sandbox](/sandbox) and [production preparation](/production).
+Confirm the scopes, templates, languages, coding systems, and entitlements for
+your environment during [sandbox setup](/sandbox). Arrange
+[production access](/production) after testing your integration.

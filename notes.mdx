@@ -4,12 +4,12 @@ description: "Stream a clinical draft, receive the saved document, and save the 
 sidebarTitle: "Consult notes"
 ---
 
-Generate a consult note after preparing a session's transcript and relevant
-context. Your application displays the draft for clinician review.
+Generate a draft from the session's transcript and context, then present it for
+clinician review.
 
-You need `scribe:generate` to request output, `scribe:read` to retrieve it later,
-and `scribe:write` to save edits. Clinical permissions, template access, and
-generation entitlements also apply.
+**Scopes:** `scribe:generate` to generate, `scribe:read` to retrieve, and
+`scribe:write` to save edits. The clinician needs access to the selected templates
+and generation entitlements.
 
 ## Request generation
 
@@ -23,13 +23,12 @@ curl --no-buffer --request POST "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/
   --data "{\"template_ids\":[\"$CORTEXA_TEMPLATE_ID\"],\"output_language_code\":\"en\"}"
 ```
 
-| Field | Required | Meaning |
+| Field | Required | Description |
 | --- | --- | --- |
 | `template_ids` | No | Up to 20 template IDs; select from [available templates](/templates) |
 | `output_language_code` | No | Language requested for this generation |
 
-Selecting a template explicitly makes the expected output clear. Omitting the
-selection uses the session's applicable template selection/default behavior.
+If you omit `template_ids`, Cortexa uses the session's template selection or default.
 
 The default response is `200 text/event-stream`. Display each `output.delta` as
 it arrives. The final `output.ready` contains the saved document, so you do not
@@ -47,10 +46,9 @@ data: {"document_id":"document_example","data":"Synthetic draft: the patient rep
 
 ```
 
-Track each document separately when requesting multiple templates. Use the
-`document` from `output.ready` as the final result; a disconnected stream or
-partial text does not mean generation succeeded. Already-completed output may
-arrive immediately as `output.ready` without deltas.
+For multiple templates, track each document separately and wait for its
+`output.ready`. Completed output can arrive immediately without deltas.
+A disconnected stream is incomplete until every document has a result.
 
 See [Streaming](/streaming) for the event format, failure handling, and resuming
 the same request after a disconnect. For background-only generation, add
@@ -95,7 +93,6 @@ endpoint returns `409 CONSULT_NOTE_REQUIRED`.
 
 ## Write the result to your EHR
 
-After review, use your own EHR API to save the result to the mapped encounter.
-Cortexa's document PATCH stores the edit in Cortexa; it does not push the text to
-an external EHR. See [Documents](/documents) for document-specific edits and
-[workflow recipes](/workflows) for a complete review-and-save sequence.
+Save the reviewed result through your EHR API or an [approved connector](/connectors).
+To fill separate EHR fields, use [note sections](/sectional-notes). Document PATCH
+requests save edits in Cortexa.

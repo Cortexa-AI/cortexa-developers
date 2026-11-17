@@ -3,11 +3,9 @@ title: "Add clinical context"
 description: "Provide relevant history and attachments before generating a note or document."
 ---
 
-Context gives Cortexa information that may not be spoken during the consultation,
-such as medications, allergies, or a report the clinician has reviewed. Supply it
-before requesting the output that should use it.
+Add patient history, reports, and previous consultation notes before generation.
 
-Use `scribe:write` to change context and `scribe:read` to check attachment status.
+**Scopes:** `scribe:write` to change context; `scribe:read` to retrieve it.
 
 ## Add background text
 
@@ -21,9 +19,8 @@ curl --request PATCH "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID" \
   --data '{"background_context":"Synthetic encounter. Relevant history: follow-up for sleep concerns. No medication changes documented."}'
 ```
 
-This field accepts up to 100,000 characters. Send the complete background text you
-want stored: PATCH replaces this field rather than appending to it. If you need to
-combine existing background with new material, read the session first.
+Send the complete background text, up to 100,000 characters. PATCH replaces the
+existing value.
 
 ## Upload a report
 
@@ -40,7 +37,7 @@ curl --request POST "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/context-docu
 Use a local file containing synthetic clinical information. For multiple files,
 repeat `--form 'files=@...'`; do not set the multipart boundary yourself.
 
-| Constraint | Value |
+| Description | Value |
 | --- | --- |
 | Files per request | 1–10 |
 | Total file content | At most 50 MiB |
@@ -58,10 +55,9 @@ curl "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/context-documents" \
   --header "Authorization: Bearer $CORTEXA_JWT"
 ```
 
-This returns a paginated list. Wait for each required item to have `status: "ready"`
-and `index_status: "ready"` before generating output that depends on it. An extraction or
-indexing failure remains visible in these status fields. Resolve failed inputs
-rather than repeatedly generating a note that cannot use the missing report.
+The response is paginated. Wait for both `status: "ready"` and
+`index_status: "ready"` on each required attachment before generating. These fields
+also show extraction or indexing failures.
 
 ## Remove an attachment
 
@@ -96,14 +92,10 @@ linked session IDs. Each generation reads the latest completed consult note from
 each linked session, including saved edits. You do not need to link the session
 again after editing or generating a new source note. An empty list removes every link.
 
-Linked notes can provide generation evidence without new audio. They are marked
-as historical sources, distinct from the current consultation's transcript.
-An active or failed transcription still needs resolution before generation.
-Deleted notes are excluded; if another completed consult note exists in that
-session, generation uses the latest remaining one. Deleting a source session,
-changing its patient association, or revoking the grant excludes that source.
-Existing output is not
-rewritten by a context change; regenerate deliberately when needed.
+Linked notes can be used without new audio; any active or failed transcription
+must still be resolved. Generation skips deleted or inaccessible sources and uses
+the latest remaining completed note. Moving a source to another patient excludes it.
+Context changes apply to future generation; existing documents keep their text.
 
 A different patient returns `422 CONTEXT_PATIENT_MISMATCH`; a resource outside the
 grant returns `404`; a source without a completed note returns

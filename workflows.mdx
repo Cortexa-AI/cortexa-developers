@@ -4,21 +4,20 @@ description: "Build a follow-up note, a referral, or a complete review-and-save 
 sidebarTitle: "Workflow recipes"
 ---
 
-These recipes connect the individual endpoint guides. Every step uses the same
-grant, and every asynchronous result must be ready before its dependent step.
+Combine the API calls into common clinical workflows. Use the same grant for
+each consultation and wait for required inputs to finish processing.
 
 ## Record a consultation and produce a note
 
-1. [Create or find the patient](/patients) using your stable EHR patient ID.
-2. [Create the session](/sessions) using your encounter ID and the returned patient ID.
-3. [Add background text or reports](/context). Wait for required files to be ready.
-4. Capture audio in your application and use [segmented transcription](/segmented-transcription).
-   Display per-chunk text as it returns, then finish the recording.
-5. [Generate a consult note](/notes) with a clinician-selected template.
-6. [Display the stream](/streaming) and use `output.ready` to present the saved draft for review.
-7. Save reviewed edits and write the result to your EHR's encounter.
+1. [Open the patient and session](/session-workflow) using your EHR's IDs.
+2. [Add background text or reports](/context). Wait for required files to be ready.
+3. Record with the [Widget](/widget) or use [segmented transcription](/segmented-transcription).
+   Display chunk transcripts as they return, then finish the recording.
+4. [Generate a consult note](/notes) with the clinician's selected template.
+5. [Display the stream](/streaming) and present the saved `output.ready` document for review.
+6. Save reviewed edits and write the result to your EHR's encounter.
 
-If the full recording already exists, replace step 4 with the
+If the full recording already exists, replace step 3 with the
 [complete recording upload](/recordings) workflow.
 
 ## Produce a referral from the same consultation
@@ -41,9 +40,6 @@ template and queues its document in one request.
 4. PATCH the document with that value as `base_version` and the edited content.
 5. If you receive `409`, retrieve the newer document and resolve the conflict.
 6. Save the accepted text through your EHR API and retain the new Cortexa version.
-
-An internal Cortexa session not shared through your grant is not accessible through
-this flow. Use the partner-created resource mapping, not an arbitrary product URL.
 
 ## Add coding to a completed encounter
 

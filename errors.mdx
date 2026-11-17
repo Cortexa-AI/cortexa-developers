@@ -1,10 +1,10 @@
 ---
 title: "Errors, limits, and retries"
-description: "Diagnose failed requests, avoid duplicate work, and handle pagination and request limits."
+description: "Handle API errors, retry requests, and work within rate limits."
 ---
 
-JSON responses return the resource or receipt directly. Request errors contain a
-human-readable `message` and an `errors` array of machine-readable codes.
+Request errors return a `message` and an `errors` array. Use the error code to
+choose a recovery action.
 
 ## Read an error
 
@@ -17,8 +17,7 @@ Example authentication error:
 }
 ```
 
-Treat the code as the stable diagnostic and the message as an explanation. Save
-`X-Cortexa-Request-Id` from response headers when contacting support.
+Save `X-Cortexa-Request-Id` from the response headers for support.
 
 | HTTP status | Typical cause | Next action |
 | --- | --- | --- |
@@ -33,10 +32,10 @@ Treat the code as the stable diagnostic and the message as an explanation. Save
 | 502 | Audio, storage, or another upstream operation failed | Resolve the upstream failure and retry the same operation as appropriate |
 | 503 | API configuration, accounting, or a required dependency unavailable | Retry later with backoff; contact Cortexa if persistent |
 
-Unknown fields are rejected by the partner request models. Use the API reference
-for the exact request schema rather than sending an internal product payload.
+Unknown request fields return a validation error. Check the API reference for
+accepted fields.
 
-## Diagnose common codes
+## Common error codes
 
 | Code or situation | Explanation |
 | --- | --- |
@@ -52,17 +51,15 @@ for the exact request schema rather than sending an internal product payload.
 | `PATIENT_LINK_MISMATCH` | The session is not linked to the patient in the unlink request |
 | `409` while editing a document | Fetch the current document and resolve its version conflict |
 
-A failed background job can follow a successful `202` response. Inspect
-`failure_code` on the job or workflow result; HTTP acceptance does not establish
-that transcription or generation succeeded.
+A `202` response accepts the request. Check the [job](/jobs) for its final status
+and `failure_code`.
 
 ## Failures during streaming
 
-After a generation stream starts with `200`, failures arrive as `output.failed`
-or `generation.failed` events with a `failure_code`. Treat `output.ready` as the
-saved result; partial text and a closed connection are not evidence of success.
-Before streaming starts, request errors use the HTTP status and JSON body above.
-See [Streaming](/streaming) for reconnecting with the same key and event cursor.
+Before streaming starts, errors use HTTP status and JSON. During the stream,
+`output.failed` or `generation.failed` carries the failure code. Wait for
+`output.ready` before treating a document as complete. See [Streaming](/streaming)
+for reconnects.
 
 ## Request limits
 
@@ -71,10 +68,9 @@ Cortexa can assign a different limit. All grants under an application share the
 allowance, including token exchange and polling. On `429`, wait for `Retry-After`
 and reduce request frequency.
 
-Plan entitlements and generation quotas are separate from request-rate limits.
-A valid token and available rate allowance do not grant additional clinical access.
+Plan entitlements and generation quotas apply separately.
 
-## Retry without creating duplicate work
+## Retry a request
 
 | Operation | Replay identifier |
 | --- | --- |
@@ -85,14 +81,11 @@ A valid token and available rate allowance do not grant additional clinical acce
 | Finish segmented recording | Same recording ID |
 | Edit document | Current `base_version`; resolve conflicts before retrying changed text |
 
-For requests with `Idempotency-Key`, keep the same key and unchanged body when
-recovering a lost response. Use a new key for a new operation. Keys are scoped to
-the grant and operation and retained for seven days. Do not reuse a key with a
-changed payload or start duplicate generation just because polling is slow.
+After a lost response, reuse the same `Idempotency-Key` and unchanged body.
+Keys are scoped to the grant and operation and kept for seven days.
 
-After a job has failed, replaying its original request does not create new work.
-Resolve the failure and use the appropriate workflow to start a new operation.
-See [Jobs](/jobs).
+Use a new key for new work, including a fresh attempt after resolving a failed
+job. Replaying a failed request returns its original result. See [Jobs](/jobs).
 
 ## Pagination
 
@@ -114,7 +107,6 @@ array rather than a paginated object. See [Workspace directory](/workspace-direc
 
 ## Support diagnostics
 
-Include the operation, HTTP status, error/failure code, and
-`X-Cortexa-Request-Id` when asking your Cortexa integration contact for help.
-Do not put clinical information in idempotency keys or ordinary request logs.
-Keep API keys, JWTs, signed URLs, audio, and clinical payloads out of shared diagnostics.
+Send the operation, HTTP status, error code, and `X-Cortexa-Request-Id` to your
+integration contact. Keep credentials and clinical data out of logs and
+idempotency keys.

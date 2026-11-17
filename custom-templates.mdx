@@ -4,12 +4,11 @@ description: "Create a private document template and generate its response from 
 sidebarTitle: "Custom template responses"
 ---
 
-Use this endpoint for an output defined by your own instructions, such as a
-patient-friendly summary of the documented plan. It creates a private clinician
-template and queues a document using the session's clinical context.
+Generate a document from your own instructions, such as a patient-friendly
+summary. The request creates a private template and generates its first document.
 
-You need `scribe:generate`, the clinician's custom-template and generation
-entitlements, and a session with usable clinical input.
+Requires `scribe:generate`, custom-template and generation entitlements, and a
+session with clinical input.
 
 ## Send the instructions
 
@@ -23,15 +22,13 @@ curl --request POST "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/client-custo
   --data '{"name":"Patient instructions","prompt":"Summarize the documented management plan in plain language. Use headings for next steps and follow-up. Do not add facts that are absent from the consultation.","output_language_code":"en"}'
 ```
 
-| Field | Required | Meaning |
+| Field | Required | Description |
 | --- | --- | --- |
 | `name` | Yes | Name for the new template; 1–255 characters |
 | `prompt` | Yes | Instructions for the output; 1–20,000 characters |
 | `output_language_code` | No | Requested output language |
 
-The request takes these fields. It does not accept an arbitrary JSON schema or
-a form question-and-answer definition. For typed questions, use the separate
-[structured response endpoint](/structured-responses).
+For typed questions and answer options, use [structured forms](/structured-responses).
 
 ## Retrieve the response
 
@@ -46,10 +43,8 @@ Example `202` receipt:
 }
 ```
 
-[Poll the returned jobs](/jobs), then retrieve each document by its returned ID.
-Use `rendered_text` for the generated text. The `content` object follows the
-generated template/output structure; it is not a guarantee of a caller-defined
-JSON response schema.
+[Poll the returned jobs](/jobs), then retrieve the documents. Use `rendered_text`
+for display; the `content` structure depends on the generated template.
 
 ## Reuse and retry
 

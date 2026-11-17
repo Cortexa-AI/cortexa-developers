@@ -4,12 +4,9 @@ description: "Submit a focused clinical-documentation question and retrieve the 
 sidebarTitle: "Ask AI"
 ---
 
-Ask AI answers questions using the session's clinical context and prior partner
-replies. For example, ask it to summarize the plan already documented in a
-synthetic consultation.
+Ask questions about the session's clinical context and previous partner replies.
 
-Submitting requires `scribe:generate`; reading the result requires `scribe:read`.
-Use the same grant for the session and the question.
+**Scopes:** `scribe:generate` to ask; `scribe:read` to retrieve the answer.
 
 ## Submit a question
 
@@ -33,7 +30,7 @@ curl "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/ask-ai/$CORTEXA_JOB_ID" \
   --header "Authorization: Bearer $CORTEXA_JWT"
 ```
 
-| Field | Meaning |
+| Field | Description |
 | --- | --- |
 | `job_id` | Work started by your question |
 | `status` | Job state; an answer is final when this is `succeeded` |
@@ -45,16 +42,14 @@ Continue polling while the work is pending. Stop on `failed` or `cancelled` and
 handle the failure. The generic [job endpoint](/jobs) also exposes status, but
 use this session-specific endpoint to retrieve the answer.
 
-## Context and action boundaries
+## Provide context
 
-Partner questions use the authorized session and prior partner replies. They do
-not gain access to unshared visits, internal conversation history, library-wide
-search, or automatic task creation. Provide relevant material through
-[session context](/context) before asking about it.
+Add relevant material to [session context](/context) before asking. Answers use
+that session and its prior partner replies; unshared visits and internal Cortexa
+conversations are outside this scope.
 
-This endpoint returns an answer. It does not automatically edit a note or save
-the answer into your EHR. Your application decides how to display it and lets the
-clinician review any text they choose to use.
+Display the answer for clinician review. To include it in a note, save a
+[document edit](/documents#save-an-edit).
 
 ## Troubleshooting
 

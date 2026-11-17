@@ -4,8 +4,8 @@ description: "Create a synthetic encounter, submit a transcript, and retrieve a 
 sidebarTitle: "Quickstart"
 ---
 
-This walkthrough produces a note from text, so you can exercise the complete
-workflow before adding audio capture or file uploads.
+Create a patient and session, submit a short transcript, and stream your first
+consult note. No audio is needed.
 
 ## Before you begin
 
@@ -15,16 +15,14 @@ workflow before adding audio capture or file uploads.
 - The authorized clinician needs an available consult-note template and generation entitlement.
 - Run the commands in the same Bash shell with cURL and `jq` available.
 
-IDs and text returned below are illustrative. The commands capture your actual
-IDs from responses, so later requests use the resources you created.
+The examples use synthetic data and capture returned IDs for subsequent requests.
 
 ```bash
 export CORTEXA_API_BASE='https://sandbox.api.cortexanote.com/v2/scribe/open-api'
 export CORTEXA_DEMO_ID="demo-$(date -u +%Y%m%dT%H%M%SZ)"
 ```
 
-The demo ID distinguishes this walkthrough from a later fresh run. Keep it and
-all operation keys unchanged when retrying the current run.
+Keep the demo ID and operation keys unchanged when retrying this run.
 
 ## 1. Create a synthetic patient
 
@@ -38,9 +36,8 @@ patient_response=$(curl --fail-with-body --request POST "$CORTEXA_API_BASE/patie
 export CORTEXA_PATIENT_ID=$(jq -r '.id' <<< "$patient_response")
 ```
 
-The returned `id` is the Cortexa patient ID. Your external patient ID remains
-available for lookup. Repeating creation with the same external ID returns the
-existing patient within this grant.
+The response returns a Cortexa patient ID. Reusing the external ID returns the
+same patient within this grant.
 
 ## 2. Create the consultation
 
@@ -84,8 +81,7 @@ read -r -p 'Consult-note template ID: ' CORTEXA_TEMPLATE_ID
 export CORTEXA_TEMPLATE_ID
 ```
 
-If the list is empty, arrange template access with your integration contact.
-Do not copy a template ID from another user's example.
+If the list is empty, ask your integration contact to enable a template.
 
 ## 5. Stream the note
 
@@ -105,8 +101,7 @@ The `200` response stays open while generation runs. You will see
 `output.ready` event containing the saved document. No polling is needed.
 Completed output may be returned immediately without deltas.
 
-The local file contains the synthetic note. Use synthetic data for this example;
-avoid saving clinical response bodies to ordinary logs in your integration.
+The command saves the synthetic response to `cortexa-note-events.txt`.
 
 ## 6. Read the completed note
 
@@ -133,10 +128,7 @@ The final document includes `rendered_text`, structured `content`, `status`, and
 Cortexa, [save a versioned document update](/documents#save-an-edit). Use your own
 EHR API to save the reviewed text into the mapped encounter.
 
-## What you have completed
-
-You have authorized a clinician, created a patient and session, submitted clinical
-text, and retrieved a generated draft. Add the workflows your product needs next:
+## Next steps
 
 <Columns cols={2}>
   <Card title="Use audio" icon="microphone" href="/recordings">

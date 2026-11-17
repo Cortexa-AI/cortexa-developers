@@ -3,10 +3,10 @@ title: "Map note sections to EHR fields"
 description: "Convert a saved note into sections and attach your EHR field identifiers."
 ---
 
-Use sectional notes when your EHR stores history, assessment, and plan in separate
-fields. Conversion reads the latest completed consult note; it does not generate
-new clinical facts or write to the EHR. You need `scribe:write` for conversion and
-mapping changes, and `scribe:read` to retrieve template mappings.
+Split the latest completed consult note into sections and link them to your
+EHR's fields. Conversion preserves the note's text.
+
+**Scopes:** `scribe:write` to convert or map; `scribe:read` to retrieve mappings.
 
 ## Convert a saved note
 
@@ -51,9 +51,7 @@ curl --request PUT "$CORTEXA_API_BASE/templates/$CORTEXA_TEMPLATE_ID/section-map
 ```
 
 `PUT` replaces the full mapping; an empty array clears it. You can map up to 100
-unique headings from the visible template's current Markdown body. Your mapping is
-an overlay for **this grant**: it does not change the shared template or another
-partner's mapping. Built-in templates without an accessible detail record cannot
+unique headings from the visible template's current Markdown body. Mappings are saved for this grant without changing the shared template. Built-in templates without an accessible detail record cannot
 be mapped this way; use per-note links instead.
 
 `GET /templates/{template_id}/section-mappings` returns the saved template version
@@ -79,7 +77,5 @@ links to the same heading use the last saved value.
 
 ## Write the reviewed result
 
-Display the content and destinations for clinician review. Your EHR adapter can
-then write each section to its linked field. A [reviewed connector](/connectors)
-can perform that write with explicit clinician approval. Conversion alone never
-writes an external record.
+After clinician review, write each section to its linked field through your EHR
+API or an [approved connector](/connectors).
