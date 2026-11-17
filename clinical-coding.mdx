@@ -4,12 +4,11 @@ description: "Retrieve clinical code suggestions and assess documentation for US
 sidebarTitle: "Clinical coding"
 ---
 
-Coding suggestions help the clinician review documented diagnoses and procedures.
-Available code systems depend on the configured provider, region, and the
-clinician's entitlements. Confirm the systems you need during onboarding.
+Suggest diagnosis and procedure codes, or assess a US outpatient E/M level.
+Confirm available code systems during onboarding and present suggestions for
+clinician review before billing.
 
-All three coding endpoints below require `scribe:generate`, including the GET
-requests. The clinician remains responsible for reviewing suggestions before billing.
+**Scope:** `scribe:generate` for all three endpoints, including GET requests.
 
 ## Retrieve or start clinical coding
 
@@ -18,12 +17,11 @@ curl "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/clinical-codes" \
   --header "Authorization: Bearer $CORTEXA_JWT"
 ```
 
-If no result exists, this GET can start coding using the clinician's configured
-code systems. It returns `202` while queued/running/processing and `200` when a
-result is no longer pending. Inspect the body status: `200` alone does not imply
-successful coding. The response uses `Cache-Control: no-store`.
+This GET starts coding if no result exists, using the clinician's configured
+code systems. It returns `202` while pending and `200` afterward. Check `status`
+for success or failure. Responses use `Cache-Control: no-store`.
 
-| Field | Meaning |
+| Field | Description |
 | --- | --- |
 | `id` | Coding result ID, when available |
 | `job_id` | Processing job, when available |
@@ -63,7 +61,7 @@ curl --get "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/clinical-codes/em-lev
 Assessment uses the latest completed consult note produced through the
 consult-note endpoint and the current document version.
 
-| Response field | Meaning |
+| Response field | Description |
 | --- | --- |
 | `document_id`, `document_version` | The note revision assessed |
 | `status` | `suggested` or `insufficient_documentation` |

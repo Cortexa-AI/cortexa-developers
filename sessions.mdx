@@ -3,12 +3,10 @@ title: "Create and manage sessions"
 description: "Represent one consultation and keep its transcript, context, and documents together."
 ---
 
-A **session** is one consultation. It holds the transcript and context used to
-generate notes, and the documents created from that consultation.
+A **session** holds one consultation's transcript, context, and documents.
+Use the same grant for the patient and session.
 
-Use the same Partner JWT grant for the patient, session, and subsequent requests.
-Read operations require `scribe:read`; create, update, and delete require
-`scribe:write`.
+**Scopes:** `scribe:read` for reads; `scribe:write` for changes.
 
 ## Create a session
 
@@ -21,7 +19,7 @@ curl --request POST "$CORTEXA_API_BASE/sessions" \
   --data "{\"external_session_id\":\"ehr-visit-001\",\"patient_id\":\"$CORTEXA_PATIENT_ID\",\"title\":\"Synthetic follow-up\",\"background_context\":\"Synthetic patient attending a follow-up.\",\"input_languages\":[\"en\"],\"output_language_code\":\"en\"}"
 ```
 
-| Field | Required | Meaning |
+| Field | Required | Description |
 | --- | --- | --- |
 | `external_session_id` | Yes | Stable encounter ID from your EHR; 1–255 characters |
 | `patient_id` | No | Cortexa patient ID from this grant |
@@ -47,15 +45,13 @@ Example `201` response:
 }
 ```
 
-Save the returned `id` as `CORTEXA_SESSION_ID`. Repeating a create request with the
-same external session ID returns the existing session within the grant. It does
-not update its fields. A deleted session's external ID remains reserved.
+Save `id` as `CORTEXA_SESSION_ID`. Reusing an external ID returns the existing
+session unchanged. Deleted external session IDs remain reserved.
 
 ## Reopen a consultation
 
-Keep the mapping between your encounter ID and the returned Cortexa session ID.
-On reopening the encounter, use `GET /sessions/{session_id}` and list its
-[documents](/documents). If you only have your own ID, look it up with:
+Use `GET /sessions/{session_id}` to reopen an encounter and retrieve its
+[documents](/documents). To find it by your encounter ID:
 
 ```bash
 curl --get "$CORTEXA_API_BASE/sessions" \
@@ -79,10 +75,9 @@ curl --request PATCH "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID" \
   --data '{"background_context":"Updated synthetic history for the next generation."}'
 ```
 
-Changing context does not rewrite a previously generated document. Request new
-content when the clinician wants the updated information reflected in the output.
-Use [patient-session links](/patients#attach-existing-sessions) to change the
-patient association; `patient_id` is not accepted by this PATCH endpoint.
+Context changes apply to future generation. To update an existing note,
+regenerate its content. To change the patient, use
+[patient-session links](/patients#attach-existing-sessions); this PATCH does not accept `patient_id`.
 
 ## Delete a session
 

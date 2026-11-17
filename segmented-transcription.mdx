@@ -4,14 +4,11 @@ description: "Send independently decodable audio chunks and assemble the transcr
 sidebarTitle: "Segmented transcription"
 ---
 
-Use segmented transcription when your application captures audio during the
-consultation. Each upload waits for that chunk's transcription and returns text
-you can display. The combined session transcript is updated when you call finish.
+Send audio chunks over HTTP during a consultation. Each request returns the
+chunk's transcript; finishing the recording adds the combined text to the session.
 
-You need an existing session and a Partner JWT with `scribe:write`. Your frontend
-provides recording controls and produces independently decodable audio files.
-These are HTTP upload endpoints; the public API does not expose a WebSocket audio
-stream.
+Requires an existing session and `scribe:write`. Each chunk must be a complete,
+independently decodable audio file. The [Widget](/widget) handles recording for you.
 
 ## 1. Start a recording
 
@@ -41,7 +38,7 @@ curl --request POST "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/restful-segm
 
 Use the actual duration of your local audio file; 30 seconds is illustrative.
 
-| Field | Required | Constraint |
+| Field | Required | Description |
 | --- | --- | --- |
 | `file` | Yes | Audio MIME type; 1 byte to 50 MiB; each file must decode independently |
 | `index` | Yes | Integer from 0 to 9,999; numbering starts at zero |
@@ -58,10 +55,9 @@ Example response:
 }
 ```
 
-Store each successful chunk response. You can show its transcript immediately
-while additional chunks are being uploaded.
+Display the returned transcript while recording continues.
 
-## 3. Continue and recover interrupted uploads
+## 3. Send the remaining chunks
 
 Chunks may arrive out of order. The recording ID and index identify the chunk;
 the chunk endpoint does not require an `Idempotency-Key` header.

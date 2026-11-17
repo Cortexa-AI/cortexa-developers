@@ -4,12 +4,10 @@ description: "Append conversation text you already have and mark the final batch
 sidebarTitle: "Transcripts"
 ---
 
-Use this path when your application already has text from a consultation. For
-audio input, use [recording uploads](/recordings) or
-[segmented transcription](/segmented-transcription).
+Add consultation text to an existing session. For audio, use
+[recording uploads](/recordings) or [segmented transcription](/segmented-transcription).
 
-You need an existing session, a Partner JWT with `scribe:write` to append text,
-and `scribe:read` to retrieve the combined transcript.
+**Scopes:** `scribe:write` to submit text; `scribe:read` to retrieve it.
 
 ## Append a batch
 
@@ -23,9 +21,7 @@ curl --request POST "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/transcript/s
   --data '{"segments":[{"speaker":"clinician","text":"How has your sleep been?","start_seconds":0,"end_seconds":3},{"speaker":"patient","text":"It has improved since the last visit.","start_seconds":4,"end_seconds":8}],"language_code":"en","status":"completed"}'
 ```
 
-The conversation above is synthetic.
-
-| Field | Required | Meaning |
+| Field | Required | Description |
 | --- | --- | --- |
 | `segments` | Yes | 1–1,000 segments in this batch |
 | `segments[].text` | Yes | Nonempty text, up to 100,000 characters per segment |
@@ -38,12 +34,9 @@ The response includes `status`, `full_text`, `language`, and `segments`.
 
 ## Send multiple batches
 
-Use `partial` for intermediate batches and `completed` for the final one. Send a
-new `Idempotency-Key` for each distinct batch. If a request times out, retry that
-batch with the same key and unchanged body so it is not appended again.
-
-Text submission is an append operation. Do not resend the entire accumulated
-transcript under a new key when you only intend to add a new segment.
+Send only new segments in each batch. Use `partial` until the final batch, then
+`completed`. Give each batch a new `Idempotency-Key`; retry a lost response with
+the same key and body to avoid appending it twice.
 
 ## Retrieve the transcript
 

@@ -4,9 +4,8 @@ description: "Find the clinician's available templates and select the output you
 sidebarTitle: "Templates"
 ---
 
-A template guides the structure and purpose of a generated note or document.
-Use a Partner JWT with `scribe:read` to discover templates visible to the
-authorized clinician and workspace.
+Templates define the structure of notes and documents. List the templates
+available to the clinician with `scribe:read`.
 
 ## List available templates
 
@@ -34,8 +33,7 @@ Example list response:
 }
 ```
 
-The ID and name above are illustrative. Choose from your actual response and save
-the selected ID as `CORTEXA_TEMPLATE_ID`. Follow `has_next` for additional pages.
+Save your selected ID as `CORTEXA_TEMPLATE_ID`. Follow `has_next` for more pages.
 
 ## Inspect a template
 
@@ -57,18 +55,15 @@ template. Do not assume all templates have identical fields.
 | Create a document | `template_id` on `POST /sessions/{session_id}/documents` |
 | Generate from a new custom prompt | [Custom template response](/custom-templates) |
 
-For a predictable first integration, choose an explicit template returned by the
-API. Access and generation entitlements still apply when requesting output.
+Choose a template from the clinician's available list.
 
-## Template management and field mapping
+## Custom templates and EHR fields
 
-The public API exposes template listing and retrieval. It does not expose general
-template update/delete endpoints or a stored mapping from template headings to
-your EHR's field IDs. Your integration maps the returned document content to the
-fields in your own system.
+Use [custom prompts](/custom-templates) to create a private template and generate
+its first document. General template update/delete endpoints are not exposed by
+this API.
 
-The custom template response endpoint creates a private template from a prompt
-and queues its output. Its request is described in
-[Custom template responses](/custom-templates).
+Use [section mappings](/sectional-notes#save-a-template-mapping) to save the EHR
+field ID for each template heading. You can also override a field on one note.
 
 Continue with [consult notes](/notes) or [additional documents](/documents).

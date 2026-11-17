@@ -1,115 +1,92 @@
 ---
 title: "Frequently asked questions"
-description: "Answers to common questions about credentials, sandbox access, audio, and integration responsibilities."
+description: "Answers about access, audio, note generation, and EHR integration."
 sidebarTitle: "FAQ"
 ---
 
-## Authentication and sandbox
+## Access and authentication
 
 <AccordionGroup>
-  <Accordion title="Can I call clinical endpoints with my API key?">
-    Use the API key on `POST /jwt` together with an authorization code or an
-    existing grant ID. Clinical endpoints require the Partner JWT returned by
-    that exchange. See [Authentication](/authentication).
+  <Accordion title="How do I get sandbox access?">
+    Contact your Cortexa integration representative for application credentials,
+    a test clinician and workspace, and the Cortexa app URL. See [Sandbox](/sandbox).
   </Accordion>
-  <Accordion title="Can I use a clinician's normal login token instead?">
-    The normal login token is used for Cortexa authentication and authorization
-    management. It is not a Partner JWT and is not accepted by clinical Open API
-    endpoints. A test clinician account still needs a partner application and
-    grant to exercise the Open API workflow.
+  <Accordion title="Can I call clinical endpoints with an API key?">
+    Exchange the API key and a clinician authorization code for a Partner JWT.
+    Use that JWT for clinical requests. A normal Cortexa login token cannot
+    replace it. See [Authentication](/authentication).
   </Accordion>
-  <Accordion title="Where do I get a sandbox account or key?">
-    Arrange access with your Cortexa integration contact. They provide the
-    application details, clinician/workspace test access, and the consent entry
-    point. The sandbox API hostname itself does not host a sign-up or login page.
+  <Accordion title="What is external_user_id?">
+    The clinician's user ID in your system. Your application includes it in the
+    authorization link. It is required; reuse the same ID when they reconnect.
   </Accordion>
-  <Accordion title="Does the clinician have to sign in before every API call?">
-    No. After initial authorization, your backend can obtain another JWT using
-    its API key and the saved grant ID while that grant remains valid. Revoked
-    access requires new clinician authorization.
+  <Accordion title="Does the clinician sign in for every API call?">
+    No. After the first authorization, your backend can renew tokens with its
+    API key and the saved grant ID. Reconnect only when authorization is no longer valid.
   </Accordion>
-  <Accordion title="Can one application serve multiple clinicians or workspaces?">
-    Yes. Keep a separate grant and clinician/workspace mapping for each authorized
-    context. Patients and sessions created through one grant are not automatically
-    available through another grant.
+  <Accordion title="Can one application serve multiple clinicians?">
+    Yes. Save each clinician's grant for their selected workspace. Patients and
+    sessions are scoped to the grant that created them.
+  </Accordion>
+  <Accordion title="How does a clinician change the connected workspace?">
+    Send them through authorization again to select the workspace. Use the returned
+    grant for subsequent requests; changing workspaces in Cortexa does not change an existing grant.
   </Accordion>
 </AccordionGroup>
 
-## Building the workflow
+## Building your workflow
 
 <AccordionGroup>
-  <Accordion title="Can I integrate with a web, desktop, or mobile application?">
-    Your application's backend can call the HTTP API. Build the recording and
-    review interface appropriate to your client, and keep the application API
-    key on the backend. Use the [JavaScript SDK](/javascript-sdk) or the
-    [embedded Widget](/widget) for capture, streamed generation, and review.
-  </Accordion>
   <Accordion title="Do I need audio to try note generation?">
-    No. Start with the synthetic text example in [Quickstart](/quickstart).
-    You can add complete recordings or segmented audio afterward.
+    No. The [Quickstart](/quickstart) uses a short synthetic transcript.
   </Accordion>
-  <Accordion title="Can I transcribe audio during the consultation?">
-    Yes, through [segmented HTTP uploads](/segmented-transcription). Each
-    independently decodable chunk returns its transcript. Finish the recording
-    to append the ordered result to the session. These endpoints do not expose
-    a public WebSocket streaming connection.
+  <Accordion title="Can I transcribe during a consultation?">
+    Yes. Send [independent audio chunks over HTTP](/segmented-transcription).
+    Each returns text; finish the recording to assemble the session transcript.
+    This is not a WebSocket audio stream.
   </Accordion>
-  <Accordion title="Do I have to poll to get my note?">
-    No. Consult-note and document-content generation stream text by default.
-    The final `output.ready` event includes the saved document. See
-    [Streaming](/streaming) for the event format and reconnect behavior.
+  <Accordion title="Do I need to poll for notes?">
+    Consult notes and document content [stream by default](/streaming), including
+    the saved result. For background processing, set `stream=false` and
+    [poll the returned jobs](/jobs). A `202` receipt does not contain the finished note.
   </Accordion>
-  <Accordion title="Does a 202 response contain my finished note?">
-    With `stream=false`, generation returns a `202` processing receipt. Poll its
-    job IDs, then retrieve the documents. Reused ready output may have no new
-    job; [Jobs](/jobs) explains both cases. Other asynchronous endpoints also
-    use processing receipts.
+  <Accordion title="Is there a ready-made interface?">
+    Embed the [Widget](/widget) for recording, generation, and review. Use the
+    [JavaScript SDK](/javascript-sdk) or HTTP API to build your own interface.
   </Accordion>
-  <Accordion title="Will Cortexa automatically save a note in my EHR?">
-    Your integration retrieves the result, lets the clinician review it, and
-    writes it through your EHR's API or a [reviewed connector](/connectors). Updating a Cortexa document stores
-    the edit in Cortexa; it is not an external EHR write-back operation.
+  <Accordion title="How do I save the note to my EHR?">
+    Write the reviewed result through your EHR API or an [approved connector](/connectors).
+    Use [section mappings](/sectional-notes) for separate EHR fields. Editing a
+    Cortexa document saves it in Cortexa.
   </Accordion>
-  <Accordion title="Can I request an arbitrary JSON output schema?">
-    The [custom template endpoint](/custom-templates) accepts a name, prompt,
-    and optional output language, then generates a document. It does not accept
-    a caller-defined JSON schema. Use [structured responses](/structured-responses)
-    for typed questions, options, dates, repetition, and nested answers.
+  <Accordion title="Can I generate a custom format?">
+    Use [custom prompts](/custom-templates) for free-text documents, or
+    [structured forms](/structured-responses) for typed questions, options,
+    dates, and repeated entries. Arbitrary JSON Schema is not supported.
   </Accordion>
-  <Accordion title="Which languages and deployment regions can I offer?">
-    Session requests accept input languages and an output language. Confirm the
-    languages, audio provider, hosting arrangements, and production endpoint
-    for your integration with Cortexa. These guides do not promise a fixed
-    language count or a set of regional production hosts.
-  </Accordion>
-  <Accordion title="Are clinical codes ready to submit for billing?">
-    They are suggestions for clinician review. Supported code systems depend
-    on the provider and entitlements. E/M is limited to US outpatient MDM-based
-    assessment and may report insufficient documentation. See [Coding](/clinical-coding).
+  <Accordion title="Which languages, regions, and code systems are available?">
+    Confirm these with Cortexa for your environment. Clinical codes are
+    suggestions for review; [E/M assessment](/clinical-coding) covers US outpatient MDM.
   </Accordion>
 </AccordionGroup>
 
-## Results and support
+## Troubleshooting
 
 <AccordionGroup>
-  <Accordion title="Why do I get 404 for a session I can see in Cortexa?">
-    Open API access is scoped to resources created through your grant. Internal
-    Cortexa sessions and resources from other grants are not automatically
-    shared with your application. Verify the resource ID and grant mapping.
+  <Accordion title="Why does an existing session return 404?">
+    Check the session ID and grant. Sessions from another grant, including
+    unshared internal Cortexa sessions, are not automatically accessible.
   </Accordion>
-  <Accordion title="How do I avoid duplicates after a timeout?">
-    Retry the same operation with the same idempotency key and body. Patient
-    and session creation also use grant-scoped external IDs. Segmented audio
-    uses its recording ID, index, bytes, and duration for replay. See [Errors](/errors).
+  <Accordion title="How do I retry without creating duplicates?">
+    Keep the same request body and idempotency key. Patient and session creation
+    use external IDs; audio chunks use the recording ID and index. See [Errors](/errors).
   </Accordion>
-  <Accordion title="Does removing context remove old generated text?">
-    It changes the context available to future generation. Existing documents
-    keep their content until edited or regenerated. Detaching an attachment
-    also leaves the clinician's library copy intact.
+  <Accordion title="Does changing context update existing notes?">
+    Context changes apply to future generation. Edit or regenerate an existing
+    document to update its text.
   </Accordion>
-  <Accordion title="What should I send when reporting an integration issue?">
-    Send your integration contact the operation, HTTP status, failure code if
-    available, and `X-Cortexa-Request-Id`. Keep credentials and clinical payloads
-    out of the report unless an agreed support process specifically requires them.
+  <Accordion title="What should I send to support?">
+    Send the operation, HTTP status, failure code, and `X-Cortexa-Request-Id` to
+    your integration contact. Exclude credentials and clinical payloads.
   </Accordion>
 </AccordionGroup>

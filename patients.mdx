@@ -3,12 +3,10 @@ title: "Manage patients"
 description: "Create a patient, match your EHR identifiers, and attach consultations to the right record."
 ---
 
-A patient connects consultations to the person being seen. Patient access is
-scoped to the clinician/workspace grant that created the patient.
+Create patient records using IDs from your EHR, then link their consultations.
+Patients belong to the [grant](/authentication) that created them.
 
-Use a [Partner JWT](/authentication). Reads require `scribe:read`; creation,
-updates, links, and deletion require `scribe:write`. Paths below are relative to
-`CORTEXA_API_BASE`, defined in [Sandbox](/sandbox).
+**Scopes:** `scribe:read` for reads; `scribe:write` for changes.
 
 ## Create or find a patient
 
@@ -21,7 +19,7 @@ curl --request POST "$CORTEXA_API_BASE/patients" \
   --data '{"external_patient_id":"ehr-patient-001","name":"Alex Example","pronouns":"they/them","additional_context":"Synthetic patient for integration testing."}'
 ```
 
-| Field | Required | Meaning |
+| Field | Required | Description |
 | --- | --- | --- |
 | `external_patient_id` | Yes | Stable patient ID from your system; 1–255 characters |
 | `name` | Yes | Display name; 1–255 characters |
@@ -42,9 +40,8 @@ Example `201` response:
 }
 ```
 
-Save the actual returned `id` as `CORTEXA_PATIENT_ID`. Repeating a create with the
-same external ID in the same grant returns the existing patient. It does not
-update the patient: use PATCH for changed details.
+Save `id` as `CORTEXA_PATIENT_ID`. Reusing an external ID returns the existing
+patient unchanged. Use PATCH to update their details.
 
 ## Read and update
 
@@ -91,9 +88,8 @@ To delete a batch, use `DELETE /patients:batch-delete` with:
 {"patient_ids": ["patient_example"]}
 ```
 
-A batch accepts 1–100 IDs. Patient deletion detaches their sessions; it does not
-delete the sessions. A deleted patient's external ID remains reserved, so choose
-a new synthetic external ID when starting a fresh test after deletion.
+A batch accepts 1–100 IDs. Deletion detaches the patient's sessions and keeps
+them available. The deleted patient's external ID remains reserved.
 
 ## Common problems
 

@@ -3,9 +3,8 @@ title: "Use the JavaScript SDK"
 description: "Create consultations, upload audio, and consume generated text in a browser or JavaScript application."
 ---
 
-The SDK is an ES module served by your Cortexa API environment. It uses standard
-`fetch`, `ReadableStream`, and `FormData`, and includes TypeScript declarations.
-No npm publication or build step is required for the hosted browser module.
+Use the JavaScript SDK to open consultations, upload audio, and receive streamed
+notes. Load the hosted ES module directly; TypeScript declarations are included.
 
 ## Load and authorize the client
 
@@ -28,11 +27,12 @@ const client = new CortexaClient({
 });
 ```
 
-`/api/cortexa/clinician-token` is an example route **you implement** on your backend.
-Never embed the application API key in a browser bundle. You can instead pass
-`token` and later call `client.setToken(...)`. When `getToken` is provided, the SDK
-calls it for each request; your implementation can cache the short-lived JWT. On
-`401` it calls it once with `refresh: true` and retries once.
+Implement `/api/cortexa/clinician-token` on your backend using the
+[token exchange](/authentication#4-renew-the-token). Keep the API key there.
+
+The SDK calls `getToken` for each request, so you can return a cached JWT. On `401`,
+it calls once with `refresh: true` and retries. Alternatively, pass `token` and
+update it with `client.setToken(...)`.
 
 For direct browser API calls, arrange your origin in the environment's CORS
 allowlist. The hosted [Widget](/widget) calls the API from its iframe's own origin.
@@ -75,10 +75,9 @@ same generation method with those values and `lastEventId` after a disconnect.
 Keep one cursor per generation request. `AbortSignal` stops your local stream;
 it does not cancel the durable server job.
 
-The SDK yields the [public SSE events](/streaming), including failure events. It
-does not silently start a new generation when the stream ends. Treat a stream
-without `output.ready` for every expected document as incomplete. Network errors
-are not automatically retried; keep your operation key when retrying a lost response.
+Wait for `output.ready` for every expected document. The SDK yields
+[failure events](/streaming#handle-each-event) and leaves network retries to your
+application. Retry with the same key to continue the existing generation.
 
 ## Common methods
 

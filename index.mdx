@@ -1,84 +1,65 @@
 ---
 title: "Cortexa Developers"
-description: "Build a clinical documentation workflow with the Cortexa Scribe API."
+description: "Add clinical documentation to your EHR or healthcare application."
 sidebarTitle: "Overview"
 ---
 
-Add clinical documentation to your EHR, telehealth platform, or clinical application.
-Send a consultation's transcript or audio, provide relevant patient context, and
-retrieve a draft note for the clinician to review and save.
+Turn consultation audio or text into notes, letters, and structured clinical
+forms. Your clinicians review the results and save them to your system.
 
-Choose a backend API integration, the JavaScript SDK, or the embedded Widget.
-Your application supplies the patient and encounter identity; Cortexa can provide
-recording, streamed generation, and a review interface. Write the reviewed result
-through your EHR API or a clinician-approved connector.
+## Choose your integration
 
-<Columns cols={2}>
-  <Card title="Understand the workflow" icon="diagram-project" href="/integration-flow">
-    See who does what, from clinician consent to a reviewed note in your EHR.
+<Columns cols={3}>
+  <Card title="API" icon="code" href="/quickstart">
+    Build your own workflow with patients, sessions, transcription, and streamed notes.
   </Card>
-  <Card title="Get sandbox access" icon="flask" href="/sandbox">
-    Arrange your application credentials, test clinician, workspace, and consent flow.
+  <Card title="Widget" icon="window-maximize" href="/widget">
+    Embed recording, note generation, and clinician review in your application.
   </Card>
-  <Card title="Generate your first note" icon="file-lines" href="/quickstart">
-    Follow a complete example with a synthetic patient and transcript.
-  </Card>
-  <Card title="Explore the API" icon="code" href="/capabilities">
-    Find the supported workflows and the reference for all public operations.
+  <Card title="Connectors" icon="plug" href="/connectors">
+    Connect REST or MCP tools for reading records and saving reviewed notes.
   </Card>
 </Columns>
 
-## What you can build
+For a custom JavaScript interface, use the [JavaScript SDK](/javascript-sdk).
 
-| Workflow | Guides |
-| --- | --- |
-| Connect a clinician and workspace | [Authentication](/authentication) |
-| Match patients and consultations to your EHR | [Patients](/patients), [sessions](/sessions) |
-| Supply conversation text or audio | [Transcripts](/transcripts), [recordings](/recordings), [segmented transcription](/segmented-transcription) |
-| Include history and supporting reports | [Clinical context](/context) |
-| Generate and edit clinical outputs | [Templates](/templates), [notes](/notes), [documents](/documents), [custom prompts](/custom-templates) |
-| Ask about a consultation or request coding suggestions | [Ask AI](/ask-ai), [clinical coding](/clinical-coding) |
-| Receive completed work and save it in your EHR | [Streaming](/streaming), [Jobs](/jobs), [workflow recipes](/workflows) |
+## Get started
 
-## A consultation in six steps
+1. [Get sandbox access](/sandbox) for your application and test clinician.
+2. [Connect the clinician](/authentication) and obtain an access token.
+3. [Generate your first note](/quickstart) from a short synthetic transcript.
 
-1. Obtain the clinician's authorization and exchange it for a Partner JWT.
-2. Create a patient and session using your EHR's external IDs.
-3. Add relevant context and submit transcript text or audio.
-4. Select a template and request a note.
-5. Display streamed text and receive the completed document in the same response.
-6. Let the clinician review it, then save the result through your EHR's API.
-
-See [How an integration works](/integration-flow) for the complete sequence and
-[Quickstart](/quickstart) for executable requests.
-
-## Know the core objects
-
-| Object | Meaning |
-| --- | --- |
-| Partner application | Your integration and its server-side credentials |
-| Grant | Permission for your application to act for one clinician in one workspace |
-| Patient | Patient record accessible through that grant |
-| Session | One consultation, including its clinical inputs and outputs |
-| Template | Instructions and structure for an output |
-| Document | A generated or edited note, letter, or other output |
-| Job | Background work whose status you can poll |
-
-A grant is the access boundary. Patients and sessions created under one grant
-are not automatically visible under another, and internal Cortexa sessions are
-not automatically shared with partners. Save resource IDs alongside the grant
-that created them.
-
-## Start in the sandbox
+Sandbox API base:
 
 ```text
 https://sandbox.api.cortexanote.com/v2/scribe/open-api
 ```
 
-Arrange access with your Cortexa integration contact. A clinician test account,
-an application API key, and a Partner JWT serve different purposes; the
-[Sandbox guide](/sandbox) explains what you need before the first request.
+## Explore the API
 
-Clinical permissions, plan entitlements, and generation quotas apply. Review
-[API capabilities](/capabilities), [FAQ](/faq), and
-[production preparation](/production) as you plan your integration.
+| Task | Guides |
+| --- | --- |
+| Open a consultation | [Patient and session workflow](/session-workflow), [patients](/patients), [sessions](/sessions) |
+| Add clinical input | [Transcripts](/transcripts), [recordings](/recordings), [segmented audio](/segmented-transcription), [context](/context) |
+| Generate and edit output | [Templates](/templates), [consult notes](/notes), [documents](/documents), [custom prompts](/custom-templates) |
+| Use results in your EHR | [Note sections](/sectional-notes), [structured forms](/structured-responses), [connectors](/connectors) |
+| Ask questions and suggest codes | [Ask AI](/ask-ai), [clinical coding](/clinical-coding) |
+| Track results and activity | [Streaming](/streaming), [jobs](/jobs), [usage](/usage) |
+
+See the **API reference** tab for request and response schemas, or
+[download the OpenAPI specification and Postman collection](/downloads).
+
+## Core concepts
+
+| Term | Description |
+| --- | --- |
+| Partner application | Your integration, identified by its application ID and server-side API key |
+| Grant | A clinician's authorization for your application to use one workspace |
+| Patient | A patient record belonging to the grant |
+| Session | One consultation, with its transcript, context, and outputs |
+| Template | Instructions and structure for generating an output |
+| Document | A note, letter, or other generated or edited output |
+| Job | Background work whose status you can query |
+
+Patients and sessions are scoped to their grant. See
+[How an integration works](/integration-flow) for the complete consultation flow.

@@ -1,66 +1,49 @@
 ---
 title: "Get sandbox access"
-description: "Know which credentials you need and what to test before connecting a real clinical workflow."
+description: "Set up your test application and generate a note with synthetic data."
 sidebarTitle: "Sandbox"
 ---
 
-Use the sandbox to develop your integration with synthetic patients and
-consultations. Arrange access with your Cortexa integration contact before
-running authenticated requests.
+Use the sandbox to build and test your integration with synthetic patients,
+recordings, and notes. Contact your Cortexa integration representative for access.
 
-## Addresses
+## What you need
 
-| Address | Use |
+| Item | Purpose |
 | --- | --- |
-| `https://sandbox.api.cortexanote.com` | Origin used by the OpenAPI and Postman downloads |
-| `https://sandbox.api.cortexanote.com/v2/scribe/open-api` | API base used by the examples in these guides |
+| Application ID and API key | Identify your integration and obtain access tokens |
+| Registered HTTPS callback | Receive the clinician's authorization code |
+| Test clinician and workspace | Sign in to Cortexa and authorize your application |
+| Cortexa app URL | Open the clinician sign-in and consent page |
+| Scopes, templates, and entitlements | Enable the workflows you plan to test |
 
-The sandbox API hostname serves the partner API and health checks. It does not
-serve a clinician login page or the clinician authorization-management endpoints.
-Your integration contact supplies the appropriate clinician login and consent
-entry point separately.
+Tell your contact which workflows you need, including audio, attachments, custom
+templates, or coding.
 
-## What to request
+A **sandbox clinician account** is a test Cortexa account used to authorize your
+application. Your backend then exchanges its API key and that authorization for
+a Partner JWT. The JWT is what you use to call clinical endpoints.
 
-| Item | Why you need it |
-| --- | --- |
-| Partner application ID | Identifies your integration in the authorization flow |
-| Server-side API key | Lets your backend exchange an authorization code or grant for a JWT |
-| Registered HTTPS callback URI | Receives the authorization code and your `state` value |
-| Clinician test access and workspace | Provides the clinical identity and workspace the grant represents |
-| Allowed scopes and request limit | Defines the operations and request volume available to the application |
-| Consent entry point | Lets the clinician approve the application and workspace |
-| Enabled templates and relevant entitlements | Allows the workflows you plan to test |
+## API address
 
-Tell your contact which workflows you need: text, audio, document attachments,
-custom templates, Ask AI, or coding. Request access for those workflows explicitly.
-Credential provisioning does not by itself establish that every optional provider
-or entitlement is enabled in your environment.
+```text
+https://sandbox.api.cortexanote.com/v2/scribe/open-api
+```
 
-## A test clinician account and an API key do different jobs
+This address serves the API. Use the separate Cortexa app URL supplied during
+onboarding for clinician sign-in and consent.
 
-The clinician signs in to Cortexa and grants permission. Your backend uses the API
-key to obtain a **Partner JWT** for that grant. Clinical API calls use that JWT.
-
-| Credential | Use it for | Use it on clinical Open API calls? |
-| --- | --- | --- |
-| Clinician login token | Cortexa sign-in and authorization management | No |
-| Application API key | `POST /jwt` with an authorization code or grant ID | No |
-| Partner JWT from `POST /jwt` | Authorized patients, sessions, documents, and other clinical operations | Yes |
-
-See [Authentication](/authentication) before copying a token into a request.
-
-## Check that you can reach the API
-
-This public request needs no credentials:
+You can retrieve the public API specification without credentials:
 
 ```bash
 curl --fail-with-body \
   'https://sandbox.api.cortexanote.com/v2/scribe/open-api/openapi.json'
 ```
 
-It returns the partner API contract. After authorization and token exchange, try
-an authenticated request:
+## Make your first authenticated request
+
+Complete [Authentication](/authentication) and set `CORTEXA_JWT` to the returned
+access token. Then read the authorized workspace:
 
 ```bash
 export CORTEXA_API_BASE='https://sandbox.api.cortexanote.com/v2/scribe/open-api'
@@ -69,24 +52,11 @@ curl --fail-with-body "$CORTEXA_API_BASE/teams" \
   --header "Authorization: Bearer $CORTEXA_JWT"
 ```
 
-Load `CORTEXA_JWT` with the `access_token` returned by token exchange. A successful
-directory response contains the grant's authorized workspace.
-
-## Test a complete workflow
-
-Start with [a synthetic transcript](/quickstart), then exercise the input types
-you will use in your product. Check that the clinician can review the resulting
-text and that your EHR receives it under the intended encounter.
-
-Also exercise the situations your integration must handle: an expired JWT,
-a revoked grant, an interrupted upload, a failed generation job, and a document
-edited in another client. [Errors and retries](/errors) explains the responses.
+Next, [generate your first note](/quickstart). Add the audio and context workflows
+your product needs after the text example works.
 
 ## Move to production
 
-Confirm production access, credentials, callback, enabled workflows, and the
-consent entry point with Cortexa. Use the address and credentials issued for that
-environment; the sandbox URL is not a production routing guarantee.
-
-Continue with [production preparation](/production) after completing the sandbox
-workflow with your integration contact.
+Arrange a production application, credentials, callback, and API address with
+Cortexa. Sandbox grants and resource IDs are specific to the sandbox environment.
+See [production preparation](/production) for the handoff.

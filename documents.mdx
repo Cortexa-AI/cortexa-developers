@@ -4,11 +4,11 @@ description: "Generate additional outputs from a session and preserve clinician 
 sidebarTitle: "Documents"
 ---
 
-A session can have several documents, such as a consultation note and a referral
-letter. Each document has its own ID, content, status, and current version.
+Create additional outputs from a consultation, such as referrals and patient
+instructions. Each document has its own content and version.
 
-Use `scribe:write` to create, edit, and delete documents; `scribe:generate` to
-generate their content; and `scribe:read` to retrieve documents and jobs.
+**Scopes:** `scribe:write` to create, edit, or delete; `scribe:generate` to generate
+content; `scribe:read` to retrieve results.
 
 ## Create an empty document
 
@@ -26,10 +26,7 @@ Choose a template from [document templates](/templates). `title` defaults to
 `Document`; omitting `template_id` uses Auto SOAP. The `201` response contains the
 document's `id`, `current_version: 1`, empty `rendered_text`, and empty `content`.
 
-<Note>
-  Creating a document does not generate its content. The empty document can have
-  `status: "ready"`; use the next request to generate text.
-</Note>
+The new document is empty even if its status is `ready`. Generate content next.
 
 ## Generate or regenerate content
 
@@ -60,7 +57,7 @@ curl "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/documents/$CORTEXA_DOCUMENT
   --header "Authorization: Bearer $CORTEXA_JWT"
 ```
 
-| Response field | Meaning |
+| Response field | Description |
 | --- | --- |
 | `id`, `session_id` | Document and parent consultation |
 | `status` | Current output state |
@@ -89,9 +86,8 @@ curl --request PATCH "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/documents/$
 `base_version` is required. `title`, `rendered_text`, and `content` are optional
 editable fields. Retain the new `current_version` returned after saving.
 
-If another client has saved a newer version, the API returns `409`. Read the
-latest document and resolve the difference with the clinician before submitting
-an edit based on that version.
+A stale `base_version` returns `409`. Retrieve the latest document and resolve
+the edits before saving again.
 
 ## Delete a document
 
@@ -99,6 +95,7 @@ an edit based on that version.
 `{"deleted": true}` and makes that document unavailable to the partner.
 Deleting one document does not delete its session.
 
-For your EHR, save the reviewed text through your own system's API. The public
-document endpoints do not expose a PDF/DOCX download operation or a stored
-EHR-field mapping. Map the returned content to your EHR's fields in your integration.
+To save a reviewed note in your EHR, use your EHR API or an
+[approved connector](/connectors). Use [note sections](/sectional-notes) to map
+consult-note headings to EHR fields. PDF and DOCX downloads are not exposed by
+these document endpoints.

@@ -3,10 +3,10 @@ title: "Generate a structured clinical form"
 description: "Extract typed answers, repeating entries, and nested questions from a saved consult note."
 ---
 
-Use structured responses when your integration needs named questions and validated
-answers. Start with a completed [consult note](/notes). This endpoint reads that
-saved note version and returns a JSON form synchronously. It requires
-`scribe:generate` and the clinician's document-generation permissions and quotas.
+Extract text, choices, dates, and repeated entries from a completed
+[consult note](/notes). The response is JSON and returns in the same request.
+
+Requires `scribe:generate` and document-generation permissions and quotas.
 
 ## Ask the questions
 
@@ -93,6 +93,5 @@ charge another advanced-template use. An edited source note changes the request'
 source version; use a new key to generate a new form. A missing completed note
 returns `409 CONSULT_NOTE_REQUIRED`; invalid definitions return `422`.
 
-This is a defined clinical question schema, not support for arbitrary JSON Schema.
-For free-text instructions without a question schema, use [custom prompts](/custom-templates).
-Present the extracted answers for clinician review before using them in another system.
+Use the question schema above for forms, or [custom prompts](/custom-templates)
+for free-text output. Present extracted answers for clinician review.

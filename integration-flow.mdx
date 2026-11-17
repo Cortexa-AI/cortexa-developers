@@ -1,24 +1,10 @@
 ---
 title: "How an integration works"
-description: "Follow a consultation from clinician authorization to a reviewed note in your EHR."
+description: "Connect a clinician, prepare a consultation, and return a reviewed note to your EHR."
 ---
 
-Your application owns the clinician's workflow. Cortexa processes the clinical
-material you submit and returns notes, documents, and answers. This guide follows
-one clinician seeing one synthetic patient, Alex Example.
-
-## Who does what
-
-| Participant | Responsibility |
-| --- | --- |
-| Clinician | Authorizes access to a Cortexa workspace, conducts the consultation, and reviews the output |
-| Your frontend | Selects the patient, captures audio if needed, and displays progress and editable drafts |
-| Your backend | Keeps the API key, exchanges tokens, calls the API, and saves reviewed output to your EHR |
-| Cortexa | Checks authorization, processes audio and context, generates output, and exposes results |
-
-Use the [Widget](/widget) for embedded recording and review, or build your own
-interface with the [SDK](/javascript-sdk). For EHR write-back, use your adapter or
-a [reviewed connector](/connectors) with clinician approval.
+A typical integration connects the clinician once, then creates a session for
+each consultation.
 
 ## Connect a clinician
 
@@ -26,84 +12,68 @@ a [reviewed connector](/connectors) with clinician approval.
 sequenceDiagram
     participant C as Clinician
     participant E as Your application
-    participant A as Cortexa authorization
-    participant S as Cortexa Open API
+    participant A as Cortexa app
+    participant S as Cortexa API
     C->>E: Connect Cortexa
-    E->>A: Open the agreed consent flow
-    C->>A: Sign in and authorize a workspace
-    A-->>E: Registered callback with code and state
+    E->>A: Open authorization link with clinician ID
+    C->>A: Sign in and choose a workspace
+    A-->>E: Callback with code and state
     E->>S: API key + authorization code
     S-->>E: Partner JWT + grant ID
 ```
 
-The **grant** records which application may act for which clinician and workspace.
-Keep its ID alongside your clinician/workspace mapping. When the JWT expires,
-your backend can exchange the API key and the existing grant ID for another JWT.
-The clinician does not need to repeat consent for every consultation while the
-grant remains valid.
-
-See [Authentication](/authentication) for the three credential types and the
-exact exchange. Coordinate the consent entry point during [sandbox onboarding](/sandbox).
+Save the returned `grant_id` for the clinician and workspace. Your backend uses it
+with the API key to renew access tokens. The clinician only needs to reconnect
+when authorization is no longer valid. See [Authentication](/authentication).
 
 ## Run a consultation
 
 <Steps>
-  <Step title="Identify the patient">
-    Create Alex Example with an `external_patient_id` from your EHR. Save the
-    returned Cortexa patient ID. Repeating the same external ID within the grant
-    returns the existing patient; use PATCH when its details change.
+  <Step title="Open the patient and session">
+    Send your patient and encounter IDs to the [session workflow](/session-workflow).
+    It creates or resumes the consultation and returns Cortexa IDs for later requests.
   </Step>
-  <Step title="Create the session">
-    A session represents this consultation. Give it your encounter's
-    `external_session_id`, attach the Cortexa patient ID, and add relevant
-    history to `background_context` or upload context documents.
+  <Step title="Add clinical input">
+    Submit transcript text or audio and add relevant [history and reports](/context).
+    Wait for transcription and any required attachments to finish processing.
   </Step>
-  <Step title="Provide the conversation">
-    Submit an existing transcript, upload a complete audio recording, or send
-    independently decodable audio segments during the consultation. Finish
-    transcription before generating the final note.
-  </Step>
-  <Step title="Request the note">
-    Select an available template and request a consult note. A `200` streaming
-    response starts with document and job IDs, then delivers generated text.
-  </Step>
-  <Step title="Display text and receive the result">
-    Append each `output.delta` to the draft. The final `output.ready` contains
-    the saved document, including `rendered_text`, `content`, and its version.
-    See [Streaming](/streaming) for reconnects and background JSON mode.
+  <Step title="Generate the note">
+    Choose a [template](/templates) and request a [consult note](/notes).
+    Display incoming `output.delta` text. The final `output.ready` event contains
+    the saved document.
   </Step>
   <Step title="Review and save">
-    Show the draft to the clinician. Save edits to Cortexa using the document's
-    current version if you need both systems to retain the reviewed text. Then
-    write the reviewed result to the correct encounter through your EHR's API.
+    Let the clinician review the draft. [Save edits](/documents#save-an-edit) in
+    Cortexa, then write the reviewed result through your EHR API or an
+    [approved connector call](/connectors).
   </Step>
 </Steps>
 
 ## Choose an input path
 
-| You already have… | Use | Continue when… |
+| Input | Use | Ready when |
 | --- | --- | --- |
-| Transcript text | [Transcript segments](/transcripts) | The final batch has been submitted |
-| A complete recording | [Recording uploads](/recordings) | The transcription job succeeds |
-| Audio arriving during a consultation | [Segmented transcription](/segmented-transcription) | All segments are uploaded and finish succeeds |
+| Transcript text | [Transcript segments](/transcripts) | The final batch is submitted |
+| Complete recording | [Recording uploads](/recordings) | The transcription job succeeds |
+| Audio recorded during the consultation | [Segmented transcription](/segmented-transcription) | All chunks are uploaded and finish succeeds |
 
-Context files supplement these inputs. Wait for their extraction and indexing
-before requesting output that should use them.
+The [Widget](/widget) provides recording and review UI. Use the
+[JavaScript SDK](/javascript-sdk) to build your own interface.
 
 ## Keep the IDs you will need
 
-| ID | What it identifies | Where you get it |
+| ID | Source | Use |
 | --- | --- | --- |
-| `grant_id` | Clinician/workspace authorization | Token response |
-| Patient `id` | Patient within that grant | Patient creation or lookup |
-| Session `id` | Consultation within that grant | Session creation or lookup |
-| `job_id` / `job_ids` | Background work | `generation.started` or a processing receipt |
-| `document_ids` | Generated outputs | `generation.started` or a JSON generation receipt |
-| `current_version` | Current editable document revision | `output.ready` or document GET |
+| `grant_id` | Token response | Renew the clinician's token |
+| Patient `id` | Patient or workflow response | Link consultations to the patient |
+| Session `id` | Session or workflow response | Add inputs and retrieve outputs |
+| `document_ids` | Generation stream or receipt | Retrieve and edit outputs |
+| `job_id` / `job_ids` | Processing receipt or stream | Check background work |
+| `current_version` | Saved document | Submit edits as `base_version` |
 
-Use the same grant throughout the workflow. A session created under a different
-grant is not accessible just because both grants belong to the same application.
+Use the same grant throughout the consultation. A different grant cannot access
+its patients or sessions, even under the same application.
 
 <Card title="Generate your first note" icon="arrow-right" href="/quickstart">
-  Walk through this flow with a short synthetic transcript and cURL.
+  Try the complete flow with a synthetic transcript and cURL.
 </Card>

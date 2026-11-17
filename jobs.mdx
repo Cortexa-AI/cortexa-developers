@@ -4,12 +4,11 @@ description: "Poll generation and processing jobs, retrieve their results, and h
 sidebarTitle: "Jobs and results"
 ---
 
-Some requests finish after their HTTP response. A `202` response means the work
-was accepted; the job tells you when the result is ready.
+Poll a job to check when background work is complete. A `202` response accepts
+the request; it does not contain the finished result.
 
-Consult-note and document-content generation [stream text and the saved result](/streaming)
-by default. Use this polling flow when you explicitly request `?stream=false`,
-or for the other asynchronous operations below.
+Notes and document content [stream by default](/streaming). Use jobs for
+`?stream=false` and the other background operations below.
 
 ## Which ID should you poll?
 
@@ -54,10 +53,9 @@ Example response:
 | `failed` | Read `failure_code`; resolve the cause before submitting new work |
 | `cancelled` | Stop polling and tell the clinician the work did not complete |
 
-As an integration recommendation, start polling about every two seconds and
-increase the interval for longer jobs. Honor `Retry-After` on `429` responses;
-polling consumes the application's shared request allowance. Set a waiting limit
-appropriate to your UI and retain the job ID so the clinician can return later.
+Start with a polling interval of about two seconds and increase it for longer
+jobs. Honor `Retry-After` on `429`; polling shares your application's rate limit.
+Keep the job ID if the clinician leaves the page.
 
 ## Handle reused output
 
@@ -65,7 +63,7 @@ A generation response can return ready documents without creating new work.
 When `status` is `succeeded` and `job_id` is null, retrieve the supplied document
 IDs rather than calling `/jobs/null`.
 
-## Retry the request or start new work?
+## Retry a request
 
 If the initial request loses its response, resend the same request with the same
 idempotency key. This recovers its original receipt. Poll the existing job after

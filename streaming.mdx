@@ -4,18 +4,17 @@ description: "Display notes as they are generated, receive the saved result, and
 sidebarTitle: "Streaming"
 ---
 
-Consult-note and document-content generation return **server-sent events (SSE)**
-by default. Keep the response open, display incoming text, and use the completed
-document from the same connection. You do not need to poll during this flow.
+Display generated text as it arrives over **server-sent events (SSE)**. The same
+response delivers the saved document, with no polling required.
 
 | Operation | Endpoint |
 | --- | --- |
 | Generate consult notes | `POST /sessions/{session_id}/consult-note` |
 | Generate an existing document | `POST /sessions/{session_id}/documents/{document_id}/content` |
 
-Both require a Partner JWT with `scribe:generate`, access to the session, and an
-`Idempotency-Key`. Prepare the transcript and context before requesting output.
-See [Notes](/notes) and [Documents](/documents) for their request fields.
+Both endpoints require `scribe:generate` and an `Idempotency-Key`.
+Prepare the session's input first. See [Notes](/notes) and [Documents](/documents)
+for request fields.
 
 ## Open the stream
 
@@ -54,8 +53,7 @@ data: {"document":{"id":"document_example","session_id":"session_example","statu
 
 ```
 
-IDs and text in this example are illustrative. Save the actual returned IDs.
-Event IDs are opaque cursors; do not generate or interpret them yourself.
+Save returned event IDs as opaque cursors for reconnecting.
 
 ## Handle each event
 
@@ -73,19 +71,17 @@ maintain separate text and completion state for every `document_id`. Wait for an
 `output.ready` for every requested document before treating the whole request as
 successful. A closed connection alone does not establish success.
 
-`output.ready` contains the persisted result, including `content` and
-`current_version`. You can immediately display it for clinician review or
-[save versioned edits](/documents#save-an-edit). A separate GET is useful when
-reopening the encounter, but is not required to obtain the initial result.
+`output.ready` includes the saved `content` and `current_version`. Use it for
+review and [edits](/documents#save-an-edit); no additional GET is needed.
 
 If the request reuses completed output, the stream may return `output.ready`
 immediately without any deltas. In that case `job_ids` may be empty.
 
 ## Parse events in your application
 
-Use a streaming HTTP client that supports POST, JSON bodies, and authorization
-headers, such as a `fetch` response reader with an SSE parser. The browser's
-native `EventSource` constructor cannot make these authenticated POST requests.
+The [JavaScript SDK](/javascript-sdk) parses these events for you. For your own
+client, use a streaming POST request with an SSE parser. The browser's native
+`EventSource` cannot send this POST body and authorization header.
 
 Read complete SSE frames separated by blank lines. Parse each frame's `data` as
 JSON and dispatch on its `event` field. A network chunk can contain half a frame
@@ -118,7 +114,7 @@ curl --no-buffer --fail-with-body --request POST \
   --data '{"output_language_code":"en"}'
 ```
 
-## Distinguish request errors from generation failures
+## Handle failures
 
 Before the stream starts, authentication, validation, permissions, and other
 request errors use the normal HTTP status and [JSON error body](/errors).
