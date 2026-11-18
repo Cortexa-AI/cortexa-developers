@@ -39,7 +39,7 @@ when authorization is no longer valid. See [Authentication](/authentication).
   </Step>
   <Step title="Generate the note">
     Choose a [template](/templates) and request a [consult note](/notes).
-    Display incoming `output.delta` text. The final `output.ready` event contains
+    Process incoming `output.delta` text. The final `output.ready` event contains
     the saved document.
   </Step>
   <Step title="Review and save">
@@ -56,9 +56,6 @@ when authorization is no longer valid. See [Authentication](/authentication).
 | Transcript text | [Transcript segments](/transcripts) | The final batch is submitted |
 | Complete recording | [Recording uploads](/recordings) | The transcription job succeeds |
 | Audio recorded during the consultation | [Segmented transcription](/segmented-transcription) | All chunks are uploaded and finish succeeds |
-
-The [Widget](/widget) provides recording and review UI. Use the
-[JavaScript SDK](/javascript-sdk) to build your own interface.
 
 ## Keep the IDs you will need
 

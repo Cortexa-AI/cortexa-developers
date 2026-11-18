@@ -69,8 +69,6 @@
               "jobs",
               "workspace-directory",
               "workflows",
-              "javascript-sdk",
-              "widget",
               "connectors",
               "usage"
             ]
@@ -253,8 +251,7 @@
     "examples": {
       "languages": [
         "curl",
-        "python",
-        "javascript"
+        "python"
       ]
     }
   },

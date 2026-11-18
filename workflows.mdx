@@ -11,10 +11,10 @@ each consultation and wait for required inputs to finish processing.
 
 1. [Open the patient and session](/session-workflow) using your EHR's IDs.
 2. [Add background text or reports](/context). Wait for required files to be ready.
-3. Record with the [Widget](/widget) or use [segmented transcription](/segmented-transcription).
-   Display chunk transcripts as they return, then finish the recording.
+3. Upload audio chunks through [segmented transcription](/segmented-transcription),
+   process each returned transcript, then finish the recording.
 4. [Generate a consult note](/notes) with the clinician's selected template.
-5. [Display the stream](/streaming) and present the saved `output.ready` document for review.
+5. [Consume the stream](/streaming) and use the saved `output.ready` document for clinician review.
 6. Save reviewed edits and write the result to your EHR's encounter.
 
 If the full recording already exists, replace step 3 with the
@@ -25,7 +25,7 @@ If the full recording already exists, replace step 3 with the
 1. Reopen the existing session instead of creating another encounter.
 2. Select a [document template](/templates).
 3. [Create a document](/documents#create-an-empty-document) titled for the referral.
-4. Request [content generation](/documents#generate-or-regenerate-content), display its text, and wait for `output.ready`.
+4. Request [content generation](/documents#generate-or-regenerate-content) and wait for `output.ready`.
 5. Let the clinician review and edit the document, then save it through your EHR.
 
 For a new prompt-based output, such as patient instructions, use
@@ -52,16 +52,3 @@ template and queues its document in one request.
 
 Editing the note changes its version and invalidates cached E/M assessment.
 Obtain the assessment for the reviewed version before displaying it as current.
-
-## Build a useful progress UI
-
-| Stage | What your interface can show |
-| --- | --- |
-| Sending audio or context | Upload progress and retry controls owned by your client |
-| Waiting for transcription | Transcription job status, or accepted segment text |
-| Generating output | Incoming text per document; reconnect if the stream drops |
-| Ready | Reviewable document text and its current version |
-| Failed | A recoverable action based on the failure code, rather than a perpetual spinner |
-| Saving | Confirmation from your own EHR write-back |
-
-Use [Streaming](/streaming), [Jobs](/jobs), and [Errors and retries](/errors) to implement these states.
