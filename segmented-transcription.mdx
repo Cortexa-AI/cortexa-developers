@@ -8,7 +8,7 @@ Send audio chunks over HTTP during a consultation. Each request returns the
 chunk's transcript; finishing the recording adds the combined text to the session.
 
 Requires an existing session and `scribe:write`. Each chunk must be a complete,
-independently decodable audio file. The [Widget](/widget) handles recording for you.
+independently decodable audio file.
 
 ## 1. Start a recording
 
@@ -55,7 +55,7 @@ Example response:
 }
 ```
 
-Display the returned transcript while recording continues.
+Process the returned transcript while recording continues.
 
 ## 3. Send the remaining chunks
 

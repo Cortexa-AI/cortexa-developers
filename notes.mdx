@@ -30,7 +30,7 @@ curl --no-buffer --request POST "$CORTEXA_API_BASE/sessions/$CORTEXA_SESSION_ID/
 
 If you omit `template_ids`, Cortexa uses the session's template selection or default.
 
-The default response is `200 text/event-stream`. Display each `output.delta` as
+The default response is `200 text/event-stream`. Process each `output.delta` as
 it arrives. The final `output.ready` contains the saved document, so you do not
 need to poll or fetch the result separately.
 

@@ -1,10 +1,10 @@
 ---
 title: "Stream generated text"
-description: "Display notes as they are generated, receive the saved result, and reconnect without starting duplicate work."
+description: "Consume generation events, receive the saved result, and reconnect without starting duplicate work."
 sidebarTitle: "Streaming"
 ---
 
-Display generated text as it arrives over **server-sent events (SSE)**. The same
+Receive generated text as it arrives over **server-sent events (SSE)**. The same
 response delivers the saved document, with no polling required.
 
 | Operation | Endpoint |
@@ -57,13 +57,13 @@ Save returned event IDs as opaque cursors for reconnecting.
 
 ## Handle each event
 
-| Event | Data | Client action |
+| Event | Data | Backend action |
 | --- | --- | --- |
 | `generation.started` | `document_ids`, `job_ids` | Track the requested documents and any pending jobs |
 | `output.generating` | `document_id`, `reset` | Clear that document's partial text when `reset` is true |
 | `output.delta` | `document_id`, `data` | Append `data` to that document's partial text |
 | `output.ready` | `document` | Replace partial text with the saved document's `rendered_text`; retain its ID and `current_version` |
-| `output.failed` | `document_id`, `failure_code` | Stop showing that document as generating and handle the failure |
+| `output.failed` | `document_id`, `failure_code` | Mark that document as failed and handle the failure |
 | `generation.failed` | `job_id`, `failure_code` | Handle a failed or cancelled job; do not treat its unfinished documents as ready |
 
 A consult-note request can contain several templates. Events can interleave, so
@@ -77,15 +77,14 @@ review and [edits](/documents#save-an-edit); no additional GET is needed.
 If the request reuses completed output, the stream may return `output.ready`
 immediately without any deltas. In that case `job_ids` may be empty.
 
-## Parse events in your application
+## Parse events on your backend
 
-The [JavaScript SDK](/javascript-sdk) parses these events for you. For your own
-client, use a streaming POST request with an SSE parser. The browser's native
-`EventSource` cannot send this POST body and authorization header.
+Use an HTTP client that supports streaming POST requests. Send the request body
+and authorization header, then parse the SSE response.
 
 Read complete SSE frames separated by blank lines. Parse each frame's `data` as
 JSON and dispatch on its `event` field. A network chunk can contain half a frame
-or several frames; do not call `JSON.parse` on each raw network chunk. Preserve
+or several frames. Parse JSON after assembling a complete frame. Preserve
 UTF-8 characters across chunk boundaries and ignore heartbeat comments beginning
 with `:`. Keep the latest event `id` after you apply that event.
 
