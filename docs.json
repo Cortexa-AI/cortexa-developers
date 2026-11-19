@@ -2,6 +2,11 @@
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
   "name": "Cortexa Developers",
+  "seo": {
+    "metatags": {
+      "canonical": "https://cortexanote.com/developers"
+    }
+  },
   "colors": {
     "primary": "#206B57",
     "light": "#4CB494",
